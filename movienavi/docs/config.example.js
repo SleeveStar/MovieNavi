@@ -1,6 +1,0 @@
-window.MOVIENAVI_CONFIG = {
-  // TMDB API Read Access Token (v4 auth token)
-  TMDB_ACCESS_TOKEN: "PASTE_YOUR_TMDB_READ_ACCESS_TOKEN",
-  LANGUAGE: "ko-KR",
-  REGION: "KR"
-};
