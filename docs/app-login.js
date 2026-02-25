@@ -1,5 +1,3 @@
-const outputEl = document.querySelector("#auth-result");
-
 document.querySelector("#login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const payload = {
@@ -7,17 +5,18 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
     password: document.querySelector("#login-password").value
   };
   const data = await request("/api/auth/login", "POST", payload);
-  printResult(data);
   if (data.ok) {
     setTimeout(() => {
       window.location.href = "./mypage.html";
     }, 400);
+    return;
   }
+  window.alert(data.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.");
 });
 
 request("/api/auth/me", "GET").then((data) => {
   if (data.ok) {
-    printResult(data);
+    window.location.href = "./mypage.html";
   }
 });
 
@@ -35,8 +34,4 @@ async function request(url, method, body) {
     return { ok: false, status: response.status, ...json };
   }
   return { ok: true, status: response.status, ...json };
-}
-
-function printResult(data) {
-  outputEl.textContent = JSON.stringify(data, null, 2);
 }

@@ -12,7 +12,11 @@ const state = {
   isLoggedIn: false,
   heroSlides: [],
   heroSlideIndex: 0,
-  heroTimer: null
+  heroTimer: null,
+  detailCache: {},
+  providerCache: {},
+  genreRecoCache: {},
+  activeDetailMovieId: null
 };
 
 const heroEl = document.querySelector("#hero");
@@ -31,6 +35,7 @@ const searchInputEl = document.querySelector("#search-input");
 document.querySelector("#search-form").addEventListener("submit", onSearchSubmit);
 document.querySelector("#hero-search-focus").addEventListener("click", () => searchInputEl.focus());
 document.querySelector("#close-detail-modal").addEventListener("click", () => detailModal.close());
+detailModal.addEventListener("click", onDetailModalBackdropClick);
 document.querySelectorAll(".carousel-nav").forEach((btn) => {
   btn.addEventListener("click", () => scrollCarousel(btn.dataset.target, btn.dataset.dir));
 });
@@ -286,21 +291,57 @@ function dedupeMovies(movies) {
 
 async function openMovieDetail(movieId) {
   try {
+    state.activeDetailMovieId = movieId;
     detailContent.innerHTML = `<div class="state-chip state-loading">상세 로딩 중...</div>`;
-    detailModal.showModal();
+    if (!detailModal.open) {
+      detailModal.showModal();
+    }
 
-    const [data, providerData] = await Promise.all([
-      tmdb(`/movie/${movieId}`, { append_to_response: "credits,recommendations" }),
-      tmdb(`/movie/${movieId}/watch/providers`)
-    ]);
-    const cast = (data.credits?.cast || []).slice(0, 10);
+    const detailPromise = getMovieDetail(movieId);
+    const providerPromise = getWatchProviders(movieId);
+    const data = await detailPromise;
+    if (state.activeDetailMovieId !== movieId) return;
+
+    renderDetailContent(data, "불러오는 중...", null);
     const genreIds = (data.genres || []).map((genre) => genre.id);
-    const genreBased = await loadGenreBasedRecommendations(movieId, genreIds);
-    const providerText = formatProviders(providerData, state.region);
-    const backdropUrl = data.backdrop_path ? `${BACKDROP_BASE_URL}${data.backdrop_path}` : "";
-    const posterUrl = data.poster_path ? `${IMAGE_BASE_URL}${data.poster_path}` : "";
+    const genreBasedPromise = loadGenreBasedRecommendations(movieId, genreIds);
+    const [providerData, genreBased] = await Promise.all([providerPromise, genreBasedPromise]);
+    if (state.activeDetailMovieId !== movieId) return;
 
-    detailContent.innerHTML = `
+    const providerText = formatProviders(providerData, state.region);
+    renderDetailContent(data, providerText, genreBased);
+  } catch (error) {
+    console.error(error);
+    detailContent.innerHTML = `<div class="state-chip state-error">상세 로딩 실패</div>`;
+  }
+}
+
+async function getMovieDetail(movieId) {
+  if (!state.detailCache[movieId]) {
+    state.detailCache[movieId] = tmdb(`/movie/${movieId}`, { append_to_response: "credits" });
+  }
+  return state.detailCache[movieId];
+}
+
+async function getWatchProviders(movieId) {
+  if (!state.providerCache[movieId]) {
+    state.providerCache[movieId] = fetch(`/api/tmdb/movies/${movieId}/watch-providers`, {
+      credentials: "include"
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Provider proxy failed: ${response.status}`);
+        return response.json();
+      })
+      .catch(() => tmdb(`/movie/${movieId}/watch/providers`));
+  }
+  return state.providerCache[movieId];
+}
+
+function renderDetailContent(data, providerText, genreBased) {
+  const cast = (data.credits?.cast || []).slice(0, 10);
+  const backdropUrl = data.backdrop_path ? `${BACKDROP_BASE_URL}${data.backdrop_path}` : "";
+  const posterUrl = data.poster_path ? `${IMAGE_BASE_URL}${data.poster_path}` : "";
+  detailContent.innerHTML = `
       <section class="detail-media">
         ${
           backdropUrl
@@ -330,7 +371,9 @@ async function openMovieDetail(movieId) {
       </section>
       <section class="detail-panel hidden" data-panel="reco">
         ${
-          genreBased.length
+          genreBased === null
+            ? "<p class='muted'>유사 장르 추천 불러오는 중...</p>"
+            : genreBased.length
             ? genreBased
                 .map(
                   (movie) =>
@@ -342,35 +385,35 @@ async function openMovieDetail(movieId) {
       </section>
     `;
 
-    detailContent.querySelectorAll(".detail-tab").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        detailContent.querySelectorAll(".detail-tab").forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        const target = tab.dataset.tab;
-        detailContent.querySelectorAll(".detail-panel").forEach((panel) => {
-          panel.classList.toggle("hidden", panel.dataset.panel !== target);
-        });
+  detailContent.querySelectorAll(".detail-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      detailContent.querySelectorAll(".detail-tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      const target = tab.dataset.tab;
+      detailContent.querySelectorAll(".detail-panel").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.panel !== target);
       });
     });
-    detailContent.querySelectorAll(".reco-chip").forEach((btn) => {
-      btn.addEventListener("click", async () => openMovieDetail(Number(btn.dataset.movieId)));
-    });
-  } catch (error) {
-    console.error(error);
-    detailContent.innerHTML = `<div class="state-chip state-error">상세 로딩 실패</div>`;
-  }
+  });
+  detailContent.querySelectorAll(".reco-chip").forEach((btn) => {
+    btn.addEventListener("click", async () => openMovieDetail(Number(btn.dataset.movieId)));
+  });
 }
 
 async function loadGenreBasedRecommendations(movieId, genreIds) {
   if (!genreIds.length) return [];
-  const data = await tmdb("/discover/movie", {
-    include_adult: false,
-    sort_by: "popularity.desc",
-    with_genres: genreIds.join(","),
-    "vote_count.gte": 80,
-    page: 1
-  });
-  return (data.results || [])
+  const key = genreIds.slice().sort((a, b) => a - b).join(",");
+  if (!state.genreRecoCache[key]) {
+    const data = await tmdb("/discover/movie", {
+      include_adult: false,
+      sort_by: "popularity.desc",
+      with_genres: key,
+      "vote_count.gte": 80,
+      page: 1
+    });
+    state.genreRecoCache[key] = data.results || [];
+  }
+  return state.genreRecoCache[key]
     .filter((movie) => movie.id !== movieId)
     .slice(0, 8);
 }
@@ -392,4 +435,10 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function onDetailModalBackdropClick(event) {
+  if (event.target === detailModal) {
+    detailModal.close();
+  }
 }

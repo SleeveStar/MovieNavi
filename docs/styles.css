@@ -79,6 +79,57 @@ body {
   background: #f5f7f9;
   box-shadow: 0 8px 22px #0d2d360d;
   min-height: 84px;
+  transition: transform 220ms ease, opacity 220ms ease;
+  will-change: transform;
+}
+
+.topbar.topbar-hidden {
+  transform: translateY(calc(-100% - 8px));
+  opacity: 0.98;
+}
+
+.floating-side {
+  position: fixed;
+  right: max(8px, calc((100vw - 1280px) / 4 - 26px));
+  top: 50%;
+  bottom: auto;
+  margin-top: -26px;
+  z-index: 28;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.floating-side.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.floating-top-btn {
+  width: 52px;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1;
+  border-radius: 14px;
+  border: 1px solid #335067;
+  background: #0e1924cc;
+  backdrop-filter: blur(6px);
+  color: #def2ff;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 14px 26px #03121d5c;
+}
+
+.floating-top-btn:hover,
+.floating-top-btn:focus-visible {
+  transform: translateY(-2px);
+  border-color: #01b4e4;
+  box-shadow: 0 0 0 1px #01b4e466, 0 0 16px #01b4e455;
 }
 
 .brand {
@@ -211,7 +262,10 @@ button:hover {
 
 .menu-dropdown {
   position: relative;
-  min-width: 90px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
   padding-bottom: 2px;
 }
 
@@ -225,14 +279,16 @@ button:hover {
 
 .menu-list {
   position: absolute;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   top: calc(100% - 1px);
   width: 170px;
   display: none;
   border: 1px solid #b9dfe8;
   border-radius: 12px;
-  /*background: #fff;*/
+  background: transparent;
   box-shadow: 0 14px 30px #0d536621;
+  backdrop-filter: blur(4px);
   overflow: hidden;
   z-index: 20;
 }
@@ -245,17 +301,19 @@ button:hover {
 .menu-list a {
   padding: 10px 12px;
   text-decoration: none;
-  color: #15556a;
+  color: #d6ecfa;
   font-weight: 600;
   text-align: center;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 .menu-list a:hover {
   background: #ecf8fb;
+  color: #12384a;
 }
 
 #close-detail-modal {
-  margin-top: 20px;
+  margin-top: 10px;
   background: var(--hero-grad);
   color: #fff;
 }
@@ -946,31 +1004,49 @@ button:hover {
 
 .home-page .detail-wrap {
   display: grid;
-  gap: 22px;
-  padding: 8px 6px 6px;
+  gap: 14px;
+  margin: -24px -24px 0;
+  padding: 0 0 12px;
+  background: #111a24;
 }
 
 .home-page .detail-media {
   position: relative;
-  border-radius: 14px;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid #2b3d4f;
+  border: none;
   background: #101a24;
-  min-height: 180px;
+  min-height: 250px;
+  margin: 0;
 }
 
 .home-page .detail-backdrop {
   width: 100%;
-  height: 190px;
+  height: 290px;
   object-fit: cover;
+  object-position: center 22%;
   display: block;
   filter: saturate(1.05);
+  transform: scale(1.01);
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent 100%);
+}
+
+.home-page .detail-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to bottom, #0b121b12 0%, #0b121b2e 40%, #111a24ad 74%, #111a24 100%);
 }
 
 .home-page .detail-poster {
   position: absolute;
   right: 14px;
   bottom: 12px;
+  z-index: 3;
   width: 92px;
   border-radius: 10px;
   border: 1px solid #40556a;
@@ -980,6 +1056,7 @@ button:hover {
 .home-page .detail-header {
   display: grid;
   gap: 12px;
+  padding: 0 24px;
 }
 
 .home-page .detail-header h3 {
@@ -994,12 +1071,14 @@ button:hover {
   margin: 0;
   color: #a6bbce;
   line-height: 1.75;
+  padding: 0 24px;
 }
 
 .home-page .detail-tabs {
   display: flex;
   gap: 10px;
   margin-top: 8px;
+  padding: 0 24px;
 }
 
 .home-page .detail-tab {
@@ -1021,6 +1100,7 @@ button:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  margin: 0 24px;
   padding: 16px;
   border: 1px solid #27384b;
   border-radius: 14px;
@@ -1049,6 +1129,27 @@ button:hover {
 .home-page :focus-visible {
   outline: 2px solid #01b4e4;
   outline-offset: 2px;
+}
+
+.search-page {
+  background: #0a1016;
+}
+
+.search-page .layout {
+  max-width: 1280px;
+  padding-top: 24px;
+  padding-bottom: 56px;
+}
+
+.search-page .section-block {
+  margin-bottom: 0;
+}
+
+.search-page .search-panel {
+  border: 1px solid #243345;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #101925 0%, #0f1822 100%);
+  padding: 20px;
 }
 
 @media (max-width: 1080px) {
@@ -1084,6 +1185,35 @@ button:hover {
   .home-page .movie-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .home-page .detail-media {
+    min-height: 210px;
+    margin: 0;
+  }
+
+  .home-page .detail-backdrop {
+    height: 210px;
+  }
+
+  .home-page .detail-header,
+  .home-page .detail-summary,
+  .home-page .detail-overview,
+  .home-page .detail-tabs {
+    padding: 0 16px;
+  }
+
+  .home-page .detail-panel {
+    margin: 0 16px;
+  }
+
+  .search-page .layout {
+    padding-top: 16px;
+  }
+
+  .search-page .search-panel {
+    padding: 14px;
+    border-radius: 16px;
+  }
 }
 
 /* Evaluate + Ratings Redesign (match home visual language) */
@@ -1114,7 +1244,8 @@ button:hover {
 
 .eval-page .menu-list a:hover,
 .ratings-page .menu-list a:hover {
-  background: #1b2b3a;
+  background: #ecf8fb;
+  color: #12384a;
 }
 
 .eval-page .page-title,
@@ -1204,6 +1335,19 @@ button:hover {
   width: min(100%, 560px);
 }
 
+.auth-hero-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.auth-hero-logo {
+  width: min(100%, 320px);
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 12px 28px #0000004d);
+}
+
 .auth-form {
   display: grid;
   gap: 8px;
@@ -1230,6 +1374,29 @@ button:hover {
   overflow: auto;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.light-action-btn {
+  min-height: 42px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid #2f4459;
+  background: #131f2b;
+  color: #c8dcef;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, color 180ms ease;
+}
+
+.light-action-btn:hover,
+.light-action-btn:focus-visible {
+  transform: translateY(-1px);
+  border-color: #01b4e4;
+  background: #192838;
+  color: #e7f3fe;
 }
 
 .ratings-page .rating-list-page {
@@ -1273,4 +1440,204 @@ button:hover {
 .mypage-actions {
   display: grid;
   gap: 10px;
+}
+
+/* Mobile Optimization */
+@media (max-width: 900px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 14px;
+    min-height: unset;
+  }
+
+  .brand-logo {
+    height: 46px;
+  }
+
+  .search-form {
+    width: 100%;
+  }
+
+  .search-form input {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .search-form button {
+    min-height: 44px;
+    min-width: 76px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+  }
+
+  .top-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .menu-dropdown {
+    min-width: 0;
+  }
+
+  .menu-list {
+    width: 144px;
+  }
+
+  .layout {
+    padding: 12px 12px 28px;
+  }
+
+  .home-page .layout,
+  .search-page .layout,
+  .eval-page .layout,
+  .ratings-page .layout {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .home-page .section-block {
+    margin-bottom: 28px;
+  }
+
+  .home-page .section-head h2 {
+    font-size: 1.1rem;
+  }
+
+  .home-page .carousel-row {
+    grid-auto-columns: minmax(156px, 156px);
+    gap: 12px;
+  }
+
+  .home-page .movie-card {
+    grid-template-rows: 236px 1fr;
+  }
+
+  .home-page .movie-card img,
+  .home-page .skeleton-poster {
+    height: 236px;
+  }
+
+  .home-page .movie-meta {
+    padding: 10px;
+  }
+
+  .search-page .search-panel {
+    padding: 12px;
+  }
+
+  .home-page .filter-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .home-page .modal {
+    width: calc(100vw - 16px);
+    max-height: 88vh;
+    padding: 16px;
+    overflow: auto;
+  }
+
+  .home-page .detail-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .home-page .detail-summary,
+  .home-page .detail-overview {
+    line-height: 1.6;
+  }
+
+  .home-page .detail-tabs {
+    gap: 8px;
+  }
+
+  .home-page .detail-tab {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+
+  .eval-page .eval-main,
+  .ratings-page .eval-side,
+  .auth-layout .auth-card,
+  .mypage-layout .mypage-card {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .eval-page .eval-main,
+  .ratings-page .eval-side {
+    padding: 12px;
+  }
+
+  .eval-page .eval-box {
+    padding: 10px;
+  }
+
+  .ratings-page .rating-list-page {
+    max-height: 56vh;
+  }
+
+  .auth-hero-logo {
+    width: min(100%, 240px);
+  }
+
+  .auth-form input {
+    height: 40px;
+  }
+
+  .mypage-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .floating-side {
+    right: 12px;
+    top: auto;
+    bottom: 16px;
+    margin-top: 0;
+  }
+
+  .floating-top-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-logo {
+    height: 42px;
+  }
+
+  .account-pill,
+  .rating-btn {
+    min-height: 42px;
+    padding: 0 12px;
+    font-size: 0.9rem;
+  }
+
+  .home-page .hero-overlay {
+    padding: 18px;
+  }
+
+  .home-page .hero h1 {
+    font-size: clamp(1.5rem, 8vw, 2.1rem);
+  }
+
+  .home-page .hero-copy {
+    font-size: 0.9rem;
+  }
+
+  .home-page .movie-title {
+    font-size: 0.92rem;
+  }
+
+  .home-page .movie-sub {
+    font-size: 0.78rem;
+  }
+
+  .home-page .detail-header h3 {
+    font-size: 1.2rem;
+  }
 }
