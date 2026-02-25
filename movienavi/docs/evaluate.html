@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MovieNavi - 평가 페이지</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="eval-page">
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
+        <img class="brand-logo" src="./logos/movienavi_logo_gradient.png" alt="MOVIENAVI" />
+      </a>
+      <div class="search-form page-title-wrap">
+        <strong class="page-title">평가 페이지</strong>
+      </div>
+      <div class="top-actions">
+        <div class="menu-dropdown">
+          <button type="button" class="rating-btn menu-trigger">메뉴</button>
+          <nav class="menu-list">
+            <a href="./index.html">메인</a>
+            <a href="./search.html">검색</a>
+            <a href="./evaluate.html">평가 페이지</a>
+            <a href="./ratings.html">평가 목록</a>
+            <a href="./mypage.html">마이페이지</a>
+          </nav>
+        </div>
+        <a id="account-link" class="account-pill" href="./login.html">로그인/회원가입</a>
+      </div>
+    </header>
+
+    <main class="layout eval-layout">
+      <section class="eval-main">
+        <div id="eval-stage" class="eval-box eval-box-page eval-stage">
+          <div id="eval-slot" class="eval-slot">
+            <img id="eval-poster" class="eval-poster eval-poster-floating" alt="평가 대상 영화 포스터" />
+          </div>
+          <div id="eval-title" class="eval-title">불러오는 중...</div>
+          <p id="eval-overview" class="eval-overview muted"></p>
+          <div id="eval-stars" class="eval-stars"></div>
+          <button id="eval-skip" class="eval-skip">넘기기</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./config.js"></script>
+    <script src="./header-auth.js"></script>
+    <script src="./app-eval.js"></script>
+  </body>
+</html>
+
+
+
+

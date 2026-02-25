@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOVIENAVI - 검색</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="home-page search-page">
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
+        <img class="brand-logo" src="./logos/movienavi_logo_gradient.png" alt="MOVIENAVI" />
+      </a>
+      <form id="search-form" class="search-form">
+        <input id="search-input" type="search" placeholder="영화 제목 검색" autocomplete="off" />
+        <button type="submit">검색</button>
+      </form>
+      <div class="top-actions">
+        <div class="menu-dropdown">
+          <button type="button" class="rating-btn menu-trigger">메뉴</button>
+          <nav class="menu-list">
+            <a href="./index.html">메인</a>
+            <a href="./search.html">검색</a>
+            <a href="./evaluate.html">평가 페이지</a>
+            <a href="./ratings.html">평가 목록</a>
+            <a href="./mypage.html">마이페이지</a>
+          </nav>
+        </div>
+        <a id="account-link" class="account-pill" href="./login.html">로그인/회원가입</a>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="section-block search-panel">
+        <div class="section-head">
+          <h2>검색 결과</h2>
+        </div>
+        <div class="filter-row">
+          <select id="filter-sort" aria-label="정렬">
+            <option value="popularity">인기순</option>
+            <option value="rating">평점순</option>
+            <option value="latest">최신순</option>
+          </select>
+          <select id="filter-genre" aria-label="장르">
+            <option value="">전체 장르</option>
+          </select>
+          <select id="filter-year" aria-label="연도">
+            <option value="">전체 연도</option>
+          </select>
+        </div>
+        <div id="search-feedback" class="state-line"></div>
+        <div id="search-results" class="movie-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <dialog id="detail-modal" class="modal">
+      <article id="detail-content" class="detail-wrap"></article>
+      <button id="close-detail-modal" type="button">닫기</button>
+    </dialog>
+
+    <script src="./config.js"></script>
+    <script src="./header-auth.js"></script>
+    <script src="./app-search.js"></script>
+  </body>
+</html>
+
+
