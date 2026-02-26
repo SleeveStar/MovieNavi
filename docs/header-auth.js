@@ -5,6 +5,8 @@ const mypageMenuLinks = Array.from(document.querySelectorAll('a[data-menu="mypag
 const searchToggleEl = document.querySelector("#header-search-toggle");
 const searchFormEl = document.querySelector("#search-form");
 const searchInputEl = document.querySelector("#search-input");
+const topLeftEl = document.querySelector(".top-left");
+const topMenuEl = document.querySelector(".top-menu");
 const floatingSideEl = createFloatingSide();
 
 if (accountLinkEl) {
@@ -12,6 +14,9 @@ if (accountLinkEl) {
 }
 if (topbarEl) {
   initTopbarAutoHide();
+}
+if (topbarEl && topLeftEl && topMenuEl) {
+  initMobileMenuToggle();
 }
 if (searchToggleEl && searchFormEl && searchInputEl) {
   initHeaderSearch();
@@ -76,6 +81,47 @@ function initTopbarAutoHide() {
 function setMyPageMenuVisibility(isVisible) {
   mypageMenuLinks.forEach((link) => {
     link.style.display = isVisible ? "" : "none";
+  });
+}
+
+function initMobileMenuToggle() {
+  const toggleBtn = document.createElement("button");
+  toggleBtn.type = "button";
+  toggleBtn.className = "mobile-menu-toggle";
+  toggleBtn.setAttribute("aria-label", "메뉴 열기");
+  toggleBtn.setAttribute("aria-expanded", "false");
+  toggleBtn.innerHTML = `
+    <span></span>
+    <span></span>
+    <span></span>
+  `;
+  topLeftEl.insertBefore(toggleBtn, topMenuEl);
+
+  const closeMenu = () => {
+    topbarEl.classList.remove("mobile-menu-open");
+    toggleBtn.setAttribute("aria-expanded", "false");
+  };
+
+  const toggleMenu = () => {
+    const willOpen = !topbarEl.classList.contains("mobile-menu-open");
+    topbarEl.classList.toggle("mobile-menu-open", willOpen);
+    toggleBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  };
+
+  toggleBtn.addEventListener("click", toggleMenu);
+
+  topMenuEl.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", closeMenu);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!topbarEl.classList.contains("mobile-menu-open")) return;
+    if (toggleBtn.contains(event.target) || topMenuEl.contains(event.target)) return;
+    closeMenu();
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 900) closeMenu();
   });
 }
 
