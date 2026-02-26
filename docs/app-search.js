@@ -9,25 +9,34 @@ const state = {
   genreMap: {},
   ratings: {},
   rawResults: [],
-  detailCache: {},
-  providerCache: {},
-  genreRecoCache: {},
-  activeDetailMovieId: null
+  searchSections: [],
+  searchMeta: null,
+  suggestions: [],
+  activeSuggestionIndex: -1,
+  suggestionRequestId: 0,
+  suggestionTimer: null
 };
 
-const detailModal = document.querySelector("#detail-modal");
-const detailContent = document.querySelector("#detail-content");
 const searchInputEl = document.querySelector("#search-input");
 const searchFeedbackEl = document.querySelector("#search-feedback");
 const searchResultsEl = document.querySelector("#search-results");
 const sortFilterEl = document.querySelector("#filter-sort");
 const genreFilterEl = document.querySelector("#filter-genre");
 const yearFilterEl = document.querySelector("#filter-year");
+const searchFormEl = document.querySelector("#search-form");
+const searchSuggestionsEl = document.querySelector("#search-suggestions");
+searchResultsEl.classList.remove("movie-grid");
 
-document.querySelector("#search-form").addEventListener("submit", onSearchSubmit);
-document.querySelector("#close-detail-modal").addEventListener("click", () => detailModal.close());
-detailModal.addEventListener("click", onDetailModalBackdropClick);
+searchFormEl.addEventListener("submit", onSearchSubmit);
 [sortFilterEl, genreFilterEl, yearFilterEl].forEach((el) => el.addEventListener("change", applyFilters));
+if (searchSuggestionsEl) {
+  searchInputEl.addEventListener("input", onSearchInput);
+  searchInputEl.addEventListener("keydown", onSearchInputKeyDown);
+  searchInputEl.addEventListener("focus", () => {
+    if (state.suggestions.length) renderSuggestions();
+  });
+  document.addEventListener("click", onDocumentClick);
+}
 
 bootstrap();
 
@@ -133,42 +142,348 @@ async function onSearchSubmit(event) {
   event.preventDefault();
   const query = searchInputEl.value.trim();
   if (!query) return;
+  hideSuggestions();
   await search(query);
   history.replaceState(null, "", `./search.html?q=${encodeURIComponent(query)}`);
 }
 
+async function onSearchInput() {
+  if (!searchSuggestionsEl) return;
+  const query = searchInputEl.value.trim();
+  if (state.suggestionTimer) {
+    clearTimeout(state.suggestionTimer);
+    state.suggestionTimer = null;
+  }
+  if (query.length < 2) {
+    hideSuggestions();
+    return;
+  }
+
+  state.suggestionTimer = window.setTimeout(async () => {
+    const requestId = ++state.suggestionRequestId;
+    try {
+      const suggestions = await buildSuggestions(query);
+      if (requestId !== state.suggestionRequestId) return;
+      state.suggestions = suggestions.slice(0, 8);
+      state.activeSuggestionIndex = -1;
+      renderSuggestions();
+    } catch (error) {
+      console.error(error);
+      hideSuggestions();
+    }
+  }, 220);
+}
+
+function onSearchInputKeyDown(event) {
+  if (!searchSuggestionsEl) return;
+  if (searchSuggestionsEl.hidden || !state.suggestions.length) return;
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    state.activeSuggestionIndex = (state.activeSuggestionIndex + 1) % state.suggestions.length;
+    renderSuggestions();
+    return;
+  }
+
+  if (event.key === "ArrowUp") {
+    event.preventDefault();
+    state.activeSuggestionIndex = (state.activeSuggestionIndex - 1 + state.suggestions.length) % state.suggestions.length;
+    renderSuggestions();
+    return;
+  }
+
+  if (event.key === "Enter" && state.activeSuggestionIndex >= 0) {
+    event.preventDefault();
+    applySuggestion(state.suggestions[state.activeSuggestionIndex]);
+  }
+}
+
+function onDocumentClick(event) {
+  if (!searchSuggestionsEl) return;
+  if (searchFormEl.contains(event.target)) return;
+  hideSuggestions();
+}
+
 async function search(query) {
-  renderSkeleton(searchResultsEl, 10);
+  renderSearchSkeleton();
   renderState(searchFeedbackEl, "loading", "검색 중...");
-  const data = await tmdb("/search/movie", { query, include_adult: false, page: 1 });
-  state.rawResults = data.results || [];
+
+  const matchedGenreIds = findMatchedGenreIds(query);
+  const matchedGenreNames = matchedGenreIds.map((id) => state.genreMap[id]).filter(Boolean);
+  const categoryIntent = detectCategoryIntent(query);
+
+  const titlePromise = tmdb("/search/movie", { query, include_adult: false, page: 1 });
+  const genrePromise = matchedGenreIds.length
+    ? tmdb("/discover/movie", {
+        include_adult: false,
+        sort_by: "popularity.desc",
+        with_genres: matchedGenreIds.join(","),
+        page: 1
+      })
+    : Promise.resolve({ results: [] });
+  const categoryPromise = categoryIntent
+    ? tmdb(categoryIntent.path, categoryIntent.params)
+    : Promise.resolve({ results: [] });
+
+  const [titleData, genreData, categoryData] = await Promise.all([titlePromise, genrePromise, categoryPromise]);
+
+  state.searchMeta = {
+    titleCount: (titleData.results || []).length,
+    matchedGenreNames,
+    categoryLabel: categoryIntent ? categoryIntent.label : ""
+  };
+  state.searchSections = buildSearchSections({
+    titleResults: titleData.results || [],
+    genreResults: genreData.results || [],
+    categoryResults: categoryData.results || [],
+    matchedGenreNames,
+    categoryLabel: categoryIntent ? categoryIntent.label : ""
+  });
+  state.rawResults = dedupeMovies([...(titleData.results || []), ...(genreData.results || []), ...(categoryData.results || [])]);
   applyFilters();
 }
 
 function applyFilters() {
-  let movies = state.rawResults.slice();
-  const sort = sortFilterEl.value;
-  const genre = genreFilterEl.value;
-  const year = yearFilterEl.value;
+  const filteredSections = state.searchSections
+    .map((section) => ({
+      type: section.type,
+      priority: section.priority,
+      title: section.title,
+      movies: filterAndSortMovies(section)
+    }))
+    .filter((section) => section.movies.length)
+    .sort((a, b) => a.priority - b.priority);
+  const total = filteredSections.reduce((sum, section) => sum + section.movies.length, 0);
 
-  if (genre) movies = movies.filter((movie) => (movie.genre_ids || []).includes(Number(genre)));
-  if (year) movies = movies.filter((movie) => String(movie.release_date || "").startsWith(year));
-
-  movies.sort((a, b) => {
-    if (sort === "rating") return (b.vote_average || 0) - (a.vote_average || 0);
-    if (sort === "latest") return String(b.release_date || "").localeCompare(String(a.release_date || ""));
-    return (b.popularity || 0) - (a.popularity || 0);
-  });
-
-  if (!movies.length) {
+  if (!total) {
     searchResultsEl.innerHTML = "";
     renderState(searchFeedbackEl, "empty", "조건에 맞는 결과가 없습니다.");
     return;
   }
 
-  renderState(searchFeedbackEl, "ok", `${movies.length}개의 결과`);
+  const hints = [];
+  if (state.searchMeta?.titleCount) hints.push("제목 검색 반영");
+  if (state.searchMeta?.matchedGenreNames?.length) {
+    hints.push(`장르: ${state.searchMeta.matchedGenreNames.slice(0, 2).join(", ")}`);
+  }
+  if (state.searchMeta?.categoryLabel) hints.push(`카테고리: ${state.searchMeta.categoryLabel}`);
+
+  const hintText = hints.length ? ` · ${hints.join(" · ")}` : "";
+  renderState(searchFeedbackEl, "ok", `${total}개의 결과${hintText}`);
+  renderSectionResults(filteredSections);
+}
+
+function detectCategoryIntent(query) {
+  const normalized = normalizeKeyword(query);
+  return getCategoryIntents().find((intent) =>
+    intent.keywords.some((keyword) => normalized.includes(normalizeKeyword(keyword)))
+  ) || null;
+}
+
+function getCategoryIntents() {
+  return [
+    { label: "인기작", keywords: ["인기", "popular"], path: "/movie/popular", params: { page: 1 } },
+    { label: "트렌딩", keywords: ["트렌드", "트렌딩", "trending"], path: "/trending/movie/week", params: {} },
+    { label: "평점 높은 영화", keywords: ["평점", "top", "toprated", "고평점"], path: "/movie/top_rated", params: { page: 1 } },
+    { label: "현재 상영작", keywords: ["현재", "상영중", "nowplaying"], path: "/movie/now_playing", params: { page: 1 } },
+    { label: "개봉 예정작", keywords: ["예정", "개봉예정", "upcoming"], path: "/movie/upcoming", params: { page: 1 } }
+  ];
+}
+
+function findMatchedGenreIds(query) {
+  const normalizedQuery = normalizeKeyword(query);
+  return Object.entries(state.genreMap)
+    .filter(([, name]) => {
+      const normalizedName = normalizeKeyword(name);
+      return normalizedName.includes(normalizedQuery) || normalizedQuery.includes(normalizedName);
+    })
+    .map(([id]) => Number(id));
+}
+
+function normalizeKeyword(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replaceAll(/\s+/g, "");
+}
+
+function dedupeMovies(movies) {
+  return movies.filter((movie, idx, arr) => arr.findIndex((item) => item.id === movie.id) === idx);
+}
+
+function buildSearchSections({ titleResults, genreResults, categoryResults, matchedGenreNames, categoryLabel }) {
+  const sections = [];
+  const seenIds = new Set();
+
+  const sectionConfig = {
+    title: { priority: 1, limit: 18 },
+    genre: { priority: 2, limit: 14 },
+    category: { priority: 3, limit: 12 }
+  };
+
+  const pushSection = (type, title, movies) => {
+    const unique = [];
+    for (const movie of movies) {
+      if (!movie?.id || seenIds.has(movie.id)) continue;
+      seenIds.add(movie.id);
+      unique.push(movie);
+    }
+    if (unique.length) {
+      sections.push({
+        type,
+        title,
+        priority: sectionConfig[type].priority,
+        limit: sectionConfig[type].limit,
+        movies: unique
+      });
+    }
+  };
+
+  pushSection("title", "제목 일치", titleResults);
+  if (matchedGenreNames.length) {
+    pushSection("genre", `장르 추천 (${matchedGenreNames.slice(0, 2).join(", ")})`, genreResults);
+  }
+  if (categoryLabel) {
+    pushSection("category", `카테고리 추천 (${categoryLabel})`, categoryResults);
+  }
+
+  return sections;
+}
+
+function filterAndSortMovies(section) {
+  const movies = section.movies || [];
+  const sort = sortFilterEl.value;
+  const genre = genreFilterEl.value;
+  const year = yearFilterEl.value;
+
+  const filtered = movies
+    .filter((movie) => !genre || (movie.genre_ids || []).includes(Number(genre)))
+    .filter((movie) => !year || String(movie.release_date || "").startsWith(year));
+
+  filtered.sort((a, b) => {
+    if (sort === "rating") return (b.vote_average || 0) - (a.vote_average || 0);
+    if (sort === "latest") return String(b.release_date || "").localeCompare(String(a.release_date || ""));
+    return (b.popularity || 0) - (a.popularity || 0);
+  });
+
+  return filtered.slice(0, section.limit || 24);
+}
+
+function renderSectionResults(sections) {
   searchResultsEl.innerHTML = "";
-  movies.slice(0, 24).forEach((movie) => searchResultsEl.appendChild(createMovieCard(movie)));
+  sections.forEach((section) => {
+    const wrap = document.createElement("section");
+    wrap.className = "section-block";
+
+    const head = document.createElement("div");
+    head.className = "section-head";
+    head.innerHTML = `<h2>${escapeHtml(section.title)}</h2>`;
+
+    const grid = document.createElement("div");
+    grid.className = "movie-grid";
+    section.movies.forEach((movie) => grid.appendChild(createMovieCard(movie)));
+
+    wrap.appendChild(head);
+    wrap.appendChild(grid);
+    searchResultsEl.appendChild(wrap);
+  });
+}
+
+async function buildSuggestions(query) {
+  const normalized = normalizeKeyword(query);
+  const moviePromise = tmdb("/search/movie", { query, include_adult: false, page: 1 });
+  const [movieData] = await Promise.all([moviePromise]);
+  const movieItems = (movieData.results || []).slice(0, 5).map((movie) => ({
+    type: "영화",
+    label: movie.title || "제목 없음",
+    value: movie.title || "",
+    movieId: movie.id
+  }));
+
+  const genreItems = Object.entries(state.genreMap)
+    .filter(([, name]) => normalizeKeyword(name).includes(normalized) || normalized.includes(normalizeKeyword(name)))
+    .slice(0, 2)
+    .map(([, name]) => ({
+      type: "장르",
+      label: `${name} 장르 보기`,
+      value: name
+    }));
+
+  const categoryItems = getCategoryIntents()
+    .filter((intent) => intent.keywords.some((keyword) => normalizeKeyword(keyword).includes(normalized) || normalized.includes(normalizeKeyword(keyword))))
+    .slice(0, 2)
+    .map((intent) => ({
+      type: "카테고리",
+      label: intent.label,
+      value: intent.keywords[0]
+    }));
+
+  return [...movieItems, ...genreItems, ...categoryItems];
+}
+
+function renderSuggestions() {
+  if (!searchSuggestionsEl) return;
+  if (!state.suggestions.length) {
+    hideSuggestions();
+    return;
+  }
+
+  searchSuggestionsEl.innerHTML = "";
+  state.suggestions.forEach((item, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `suggest-item${index === state.activeSuggestionIndex ? " is-active" : ""}`;
+    button.innerHTML = `
+      <span class="suggest-type">${escapeHtml(item.type)}</span>
+      <span class="suggest-label">${escapeHtml(item.label)}</span>
+    `;
+    button.addEventListener("click", () => applySuggestion(item));
+    searchSuggestionsEl.appendChild(button);
+  });
+  searchSuggestionsEl.hidden = false;
+}
+
+function hideSuggestions() {
+  if (!searchSuggestionsEl) return;
+  if (state.suggestionTimer) {
+    clearTimeout(state.suggestionTimer);
+    state.suggestionTimer = null;
+  }
+  state.suggestions = [];
+  state.activeSuggestionIndex = -1;
+  searchSuggestionsEl.hidden = true;
+  searchSuggestionsEl.innerHTML = "";
+}
+
+function applySuggestion(item) {
+  searchInputEl.value = item.value || "";
+  hideSuggestions();
+  if (item.movieId) {
+    window.location.href = `./movie-detail.html?id=${item.movieId}`;
+    return;
+  }
+  const query = searchInputEl.value.trim();
+  if (!query) return;
+  void search(query);
+  history.replaceState(null, "", `./search.html?q=${encodeURIComponent(query)}`);
+}
+
+function renderSearchSkeleton() {
+  searchResultsEl.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "movie-grid";
+  for (let i = 0; i < 10; i += 1) {
+    const skeleton = document.createElement("article");
+    skeleton.className = "movie-card skeleton-card";
+    skeleton.innerHTML = `
+      <div class="skeleton-poster"></div>
+      <div class="movie-meta">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    `;
+    grid.appendChild(skeleton);
+  }
+  searchResultsEl.appendChild(grid);
 }
 
 function createMovieCard(movie) {
@@ -185,166 +500,14 @@ function createMovieCard(movie) {
       <button class="detail-btn" type="button">상세 보기</button>
     </div>
   `;
-  card.querySelector(".detail-btn").addEventListener("click", async () => openMovieDetail(movie.id));
+  card.querySelector(".detail-btn").addEventListener("click", () => {
+    window.location.href = `./movie-detail.html?id=${movie.id}`;
+  });
   return card;
-}
-
-function renderSkeleton(container, count) {
-  container.innerHTML = "";
-  for (let i = 0; i < count; i += 1) {
-    const skeleton = document.createElement("article");
-    skeleton.className = "movie-card skeleton-card";
-    skeleton.innerHTML = `
-      <div class="skeleton-poster"></div>
-      <div class="movie-meta">
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line short"></div>
-      </div>
-    `;
-    container.appendChild(skeleton);
-  }
 }
 
 function renderState(target, type, message) {
   target.innerHTML = `<div class="state-chip state-${type}">${escapeHtml(message)}</div>`;
-}
-
-async function openMovieDetail(movieId) {
-  try {
-    state.activeDetailMovieId = movieId;
-    detailContent.innerHTML = `<div class="state-chip state-loading">상세 로딩 중...</div>`;
-    if (!detailModal.open) {
-      detailModal.showModal();
-    }
-
-    const detailPromise = getMovieDetail(movieId);
-    const providerPromise = getWatchProviders(movieId);
-    const data = await detailPromise;
-    if (state.activeDetailMovieId !== movieId) return;
-
-    renderDetailContent(data, "불러오는 중...", null);
-    const genreIds = (data.genres || []).map((genre) => genre.id);
-    const genreBasedPromise = loadGenreBasedRecommendations(movieId, genreIds);
-    const [providerData, genreBased] = await Promise.all([providerPromise, genreBasedPromise]);
-    if (state.activeDetailMovieId !== movieId) return;
-
-    const providerText = formatProviders(providerData, state.region);
-    renderDetailContent(data, providerText, genreBased);
-  } catch (error) {
-    console.error(error);
-    detailContent.innerHTML = `<div class="state-chip state-error">상세 로딩 실패</div>`;
-  }
-}
-
-async function getMovieDetail(movieId) {
-  if (!state.detailCache[movieId]) {
-    state.detailCache[movieId] = tmdb(`/movie/${movieId}`, { append_to_response: "credits" });
-  }
-  return state.detailCache[movieId];
-}
-
-async function getWatchProviders(movieId) {
-  if (!state.providerCache[movieId]) {
-    state.providerCache[movieId] = fetch(`/api/tmdb/movies/${movieId}/watch-providers`, {
-      credentials: "include"
-    })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Provider proxy failed: ${response.status}`);
-        return response.json();
-      })
-      .catch(() => tmdb(`/movie/${movieId}/watch/providers`));
-  }
-  return state.providerCache[movieId];
-}
-
-function renderDetailContent(data, providerText, genreBased) {
-  const cast = (data.credits?.cast || []).slice(0, 10);
-  const backdropUrl = data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : "";
-  const posterUrl = data.poster_path ? `${IMAGE_BASE_URL}${data.poster_path}` : "";
-  detailContent.innerHTML = `
-      <section class="detail-media">
-        ${
-          backdropUrl
-            ? `<img class="detail-backdrop" src="${backdropUrl}" alt="${escapeHtml(data.title || "영화")} 배경 이미지" />`
-            : ""
-        }
-        ${
-          posterUrl
-            ? `<img class="detail-poster" src="${posterUrl}" alt="${escapeHtml(data.title || "영화")} 포스터" />`
-            : ""
-        }
-      </section>
-      <header class="detail-header">
-        <h3>${escapeHtml(data.title || "제목 없음")}</h3>
-        <p class="detail-summary">TMDB ${Number(data.vote_average || 0).toFixed(1)} · ${data.runtime || "-"}분 · ${
-          data.release_date || "개봉일 미정"
-        }</p>
-      </header>
-      <p class="detail-overview">${escapeHtml((data.overview || "줄거리 정보가 없습니다.").slice(0, 240))}</p>
-      <p class="detail-overview"><strong>시청 가능 플랫폼:</strong> ${escapeHtml(providerText)}</p>
-      <div class="detail-tabs">
-        <button type="button" class="detail-tab active" data-tab="cast">출연</button>
-        <button type="button" class="detail-tab" data-tab="reco">유사 장르 추천</button>
-      </div>
-      <section class="detail-panel" data-panel="cast">
-        ${cast.length ? cast.map((c) => `<span class="chip">${escapeHtml(c.name)}</span>`).join("") : "<p class='muted'>출연 정보 없음</p>"}
-      </section>
-      <section class="detail-panel hidden" data-panel="reco">
-        ${
-          genreBased === null
-            ? "<p class='muted'>유사 장르 추천 불러오는 중...</p>"
-            : genreBased.length
-            ? genreBased
-                .map(
-                  (movie) =>
-                    `<button type="button" class="chip reco-chip" data-movie-id="${movie.id}">${escapeHtml(movie.title || "제목 없음")}</button>`
-                )
-                .join("")
-            : "<p class='muted'>유사 장르 추천 정보 없음</p>"
-        }
-      </section>
-    `;
-  detailContent.querySelectorAll(".detail-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      detailContent.querySelectorAll(".detail-tab").forEach((t) => t.classList.remove("active"));
-      tab.classList.add("active");
-      const target = tab.dataset.tab;
-      detailContent.querySelectorAll(".detail-panel").forEach((panel) => {
-        panel.classList.toggle("hidden", panel.dataset.panel !== target);
-      });
-    });
-  });
-  detailContent.querySelectorAll(".reco-chip").forEach((btn) => {
-    btn.addEventListener("click", async () => openMovieDetail(Number(btn.dataset.movieId)));
-  });
-}
-
-async function loadGenreBasedRecommendations(movieId, genreIds) {
-  if (!genreIds.length) return [];
-  const key = genreIds.slice().sort((a, b) => a - b).join(",");
-  if (!state.genreRecoCache[key]) {
-    const data = await tmdb("/discover/movie", {
-      include_adult: false,
-      sort_by: "popularity.desc",
-      with_genres: key,
-      "vote_count.gte": 80,
-      page: 1
-    });
-    state.genreRecoCache[key] = data.results || [];
-  }
-  return state.genreRecoCache[key]
-    .filter((movie) => movie.id !== movieId)
-    .slice(0, 8);
-}
-
-function formatProviders(providerData, region) {
-  const regionData = providerData?.results?.[region] || providerData?.results?.US;
-  if (!regionData) return "정보 없음";
-  const names = [...(regionData.flatrate || []), ...(regionData.rent || []), ...(regionData.buy || [])]
-    .map((provider) => provider.provider_name)
-    .filter(Boolean);
-  const unique = names.filter((name, idx, arr) => arr.indexOf(name) === idx);
-  return unique.length ? unique.join(", ") : "정보 없음";
 }
 
 function escapeHtml(str) {
@@ -354,10 +517,4 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-function onDetailModalBackdropClick(event) {
-  if (event.target === detailModal) {
-    detailModal.close();
-  }
 }

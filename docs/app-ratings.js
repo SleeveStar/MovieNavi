@@ -6,7 +6,15 @@ async function bootstrap() {
   const me = await api("/api/auth/me");
   if (!me.ok) {
     ratingListEl.innerHTML =
-      "<li class='muted'>로그인이 필요합니다. <a href='./login.html'>로그인/회원가입</a>으로 이동하세요.</li>";
+      `
+      <li class="auth-required-item">
+        <p class="muted">로그인이 필요합니다.</p>
+        <div class="auth-required-actions">
+          <a class="light-action-btn" href="./login.html">로그인</a>
+          <a class="light-action-btn" href="./signup.html">회원가입</a>
+        </div>
+      </li>
+      `;
     return;
   }
   await renderRatingList();

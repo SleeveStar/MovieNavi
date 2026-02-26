@@ -1,6 +1,10 @@
+(() => {
 const accountLinkEl = document.querySelector("#account-link");
 const topbarEl = document.querySelector(".topbar");
-const mypageMenuLinks = Array.from(document.querySelectorAll('.menu-list a[href="./mypage.html"]'));
+const mypageMenuLinks = Array.from(document.querySelectorAll('a[data-menu="mypage"]'));
+const searchToggleEl = document.querySelector("#header-search-toggle");
+const searchFormEl = document.querySelector("#search-form");
+const searchInputEl = document.querySelector("#search-input");
 const floatingSideEl = createFloatingSide();
 
 if (accountLinkEl) {
@@ -8,6 +12,9 @@ if (accountLinkEl) {
 }
 if (topbarEl) {
   initTopbarAutoHide();
+}
+if (searchToggleEl && searchFormEl && searchInputEl) {
+  initHeaderSearch();
 }
 if (floatingSideEl) {
   initFloatingSide(floatingSideEl);
@@ -72,6 +79,51 @@ function setMyPageMenuVisibility(isVisible) {
   });
 }
 
+function initHeaderSearch() {
+  const isSearchPage = window.location.pathname.endsWith("/search.html") || window.location.pathname.endsWith("search.html");
+
+  const openSearch = () => {
+    searchFormEl.hidden = false;
+    searchToggleEl.setAttribute("aria-expanded", "true");
+    window.setTimeout(() => searchInputEl.focus(), 0);
+  };
+
+  const closeSearch = () => {
+    searchFormEl.hidden = true;
+    searchToggleEl.setAttribute("aria-expanded", "false");
+  };
+
+  window.openHeaderSearch = openSearch;
+
+  searchToggleEl.addEventListener("click", () => {
+    const isOpen = !searchFormEl.hidden;
+    if (isOpen) {
+      closeSearch();
+      return;
+    }
+    openSearch();
+  });
+
+  searchFormEl.addEventListener("submit", (event) => {
+    const query = searchInputEl.value.trim();
+    if (!query) {
+      event.preventDefault();
+      closeSearch();
+      return;
+    }
+    if (!isSearchPage) {
+      event.preventDefault();
+      window.location.href = `./search.html?q=${encodeURIComponent(query)}`;
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (searchFormEl.hidden) return;
+    if (searchFormEl.contains(event.target) || searchToggleEl.contains(event.target)) return;
+    closeSearch();
+  });
+}
+
 function createFloatingSide() {
   if (!document.body) return null;
   const aside = document.createElement("aside");
@@ -111,3 +163,4 @@ function initFloatingSide(aside) {
 
   toggleVisibility();
 }
+})();

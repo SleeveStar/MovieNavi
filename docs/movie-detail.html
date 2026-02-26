@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOVIENAVI - 마이페이지</title>
+    <title>MOVIENAVI - 상세정보</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" type="image/png" href="./logos/tab_logo.png" />
   </head>
-  <body class="ratings-page">
+  <body class="detail-page">
         <header class="topbar">
       <div class="top-left">
         <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
@@ -34,34 +34,14 @@
       </div>
     </header>
 
-    <main class="layout rating-layout mypage-layout">
-      <section class="eval-side mypage-card">
-        <h2>내 정보</h2>
-        <div id="me-summary" class="auth-result">불러오는 중...</div>
-
-        <h2>평가 통계</h2>
-        <div class="mypage-stats">
-          <article class="stat-box">
-            <p class="stat-label">총 평가 수</p>
-            <strong id="stat-count">-</strong>
-          </article>
-          <article class="stat-box">
-            <p class="stat-label">평균 별점</p>
-            <strong id="stat-avg">-</strong>
-          </article>
-        </div>
-
-        <div class="mypage-actions">
-          <a class="hero-link" href="./evaluate.html">평가하러 가기</a>
-          <a class="hero-link" href="./ratings.html">평가 목록 보기</a>
-          <button id="logout-btn" type="button" class="eval-skip">로그아웃</button>
-        </div>
+    <main class="layout detail-layout">
+      <section id="detail-stage" class="detail-stage">
+        <div class="state-chip state-loading">상세정보 로딩 중...</div>
       </section>
     </main>
 
+    <script src="./config.js"></script>
     <script src="./header-auth.js"></script>
-    <script src="./app-mypage.js"></script>
+    <script src="./app-movie-detail.js"></script>
   </body>
 </html>
-
-

@@ -8,23 +8,27 @@
     <link rel="icon" type="image/png" href="./logos/tab_logo.png" />
   </head>
   <body class="eval-page">
-    <header class="topbar">
-      <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
-        <img class="brand-logo" src="./logos/movienavi_logo_gradient.png" alt="MOVIENAVI" />
-      </a>
-      <div class="search-form page-title-wrap">
-        <strong class="page-title">평가 페이지</strong>
+        <header class="topbar">
+      <div class="top-left">
+        <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
+          <img class="brand-logo" src="./logos/movienavi_logo_gradient.png" alt="MOVIENAVI" />
+        </a>
+        <nav class="top-menu" aria-label="주요 메뉴">
+          <a href="./index.html">메인</a>
+          <a href="./search.html">검색</a>
+          <a href="./evaluate.html">평가 페이지</a>
+          <a href="./ratings.html">평가 목록</a>
+          <a data-menu="mypage" href="./mypage.html">마이페이지</a>
+        </nav>
       </div>
       <div class="top-actions">
-        <div class="menu-dropdown">
-          <button type="button" class="rating-btn menu-trigger">메뉴</button>
-          <nav class="menu-list">
-            <a href="./index.html">메인</a>
-            <a href="./search.html">검색</a>
-            <a href="./evaluate.html">평가 페이지</a>
-            <a href="./ratings.html">평가 목록</a>
-            <a href="./mypage.html">마이페이지</a>
-          </nav>
+        <div class="search-toggle-wrap">
+          <button id="header-search-toggle" class="search-toggle" type="button" aria-label="검색 열기" aria-expanded="false">
+            <img class="search-toggle-icon" src="./logos/search_icon.png" alt="" />
+          </button>
+          <form id="search-form" class="header-search-form" hidden>
+            <input id="search-input" type="search" placeholder="영화 제목/장르/카테고리 검색" autocomplete="off" />
+          </form>
         </div>
         <a id="account-link" class="account-pill" href="./login.html">로그인/회원가입</a>
       </div>
@@ -38,6 +42,17 @@
           </div>
           <div id="eval-title" class="eval-title">불러오는 중...</div>
           <p id="eval-overview" class="eval-overview muted"></p>
+          <label for="eval-review" class="eval-review-label">한줄평</label>
+          <textarea
+            id="eval-review"
+            class="eval-review-input"
+            maxlength="300"
+            placeholder="이 영화에 대한 한줄평을 남겨주세요 (선택)"
+          ></textarea>
+          <label class="eval-spoiler-wrap">
+            <input id="eval-spoiler" type="checkbox" />
+            <span>스포일러 포함</span>
+          </label>
           <div id="eval-stars" class="eval-stars"></div>
           <button id="eval-skip" class="eval-skip">넘기기</button>
         </div>
