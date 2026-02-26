@@ -6,7 +6,9 @@ const TOKEN_STORAGE_KEY = "movienavi_tmdb_token";
 const state = {
   token: resolveToken(),
   language: resolveConfig("LANGUAGE", "ko-KR"),
-  region: resolveConfig("REGION", "KR")
+  region: resolveConfig("REGION", "KR"),
+  detailSelectedRating: 0,
+  detailHoverRating: 0
 };
 
 const stageEl = document.querySelector("#detail-stage");
@@ -61,18 +63,26 @@ async function renderMovie(movieId) {
   const detail = await detailPromise;
   const genreIds = (detail.genres || []).map((genre) => genre.id);
   const recommendationsPromise = loadGenreBasedRecommendations(movieId, genreIds);
-  const [providerData, reviewsRes, recommendations] = await Promise.all([
+  const mePromise = api("/api/auth/me");
+  const myRatingsPromise = api("/api/ratings");
+  const [providerData, reviewsRes, recommendations, meRes, myRatingsRes] = await Promise.all([
     providerPromise,
     reviewsPromise,
-    recommendationsPromise
+    recommendationsPromise,
+    mePromise,
+    myRatingsPromise
   ]);
 
   const providerText = formatProviders(providerData, state.region);
   const reviews = reviewsRes.ok && Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
-  renderDetail(detail, providerText, recommendations, reviews);
+  const isLoggedIn = meRes.ok;
+  const myRating = myRatingsRes.ok && Array.isArray(myRatingsRes.data)
+    ? myRatingsRes.data.find((item) => Number(item.movieId) === Number(movieId)) || null
+    : null;
+  renderDetail(detail, providerText, recommendations, reviews, isLoggedIn, myRating);
 }
 
-function renderDetail(detail, providerText, recommendations, reviews) {
+function renderDetail(detail, providerText, recommendations, reviews, isLoggedIn, myRating) {
   stageEl.classList.remove("is-loading");
   const cast = (detail.credits?.cast || []).slice(0, 10);
   const backdropUrl = detail.backdrop_path ? `${BACKDROP_BASE_URL}${detail.backdrop_path}` : "";
@@ -127,13 +137,15 @@ function renderDetail(detail, providerText, recommendations, reviews) {
       </div>
     </section>
     <section class="detail-section">
-      <h2>유저 별점 · 한줄평</h2>
+      <h2>유저 별점 · 한줄평 (추천순)</h2>
       <div class="detail-reviews">
         ${
           reviews.length
             ? reviews
                 .map((review) => {
                   const spoilerClass = review.isSpoiler ? "is-spoiler" : "";
+                  const recommendCount = Number(review.recommendCount || 0);
+                  const recommendedClass = review.recommendedByMe ? "is-active" : "";
                   return `
                     <article class="review-card ${spoilerClass}">
                       <div class="review-head">
@@ -141,6 +153,11 @@ function renderDetail(detail, providerText, recommendations, reviews) {
                         <span>${Number(review.rating || 0)}★</span>
                       </div>
                       <p class="review-text">${escapeHtml(review.reviewText || "")}</p>
+                      <div class="review-foot">
+                        <button type="button" class="review-recommend-btn ${recommendedClass}" data-review-id="${review.reviewId}">
+                          추천 <span class="review-recommend-count">${recommendCount}</span>
+                        </button>
+                      </div>
                     </article>
                   `;
                 })
@@ -148,6 +165,43 @@ function renderDetail(detail, providerText, recommendations, reviews) {
             : "<p class='muted'>아직 등록된 한줄평이 없습니다.</p>"
         }
       </div>
+    </section>
+    <section class="detail-section">
+      <h2>내 별점 · 한줄평 남기기</h2>
+      ${
+        isLoggedIn
+          ? `
+        <form id="detail-rate-form" class="detail-rate-form">
+          <div class="detail-rate-stars">
+            <div id="detail-star-track" class="star-rating-track" role="slider" aria-label="별점 선택" aria-valuemin="0.5" aria-valuemax="5" aria-valuenow="0">
+              <div class="star-rating-base">★★★★★</div>
+              <div id="detail-star-fill" class="star-rating-fill">★★★★★</div>
+            </div>
+            <p id="detail-star-value" class="star-rating-value">0.0★</p>
+          </div>
+          <label class="detail-rate-label" for="detail-review-input">한줄평</label>
+          <textarea id="detail-review-input" class="detail-rate-review" maxlength="300" placeholder="이 영화에 대한 한줄평을 남겨보세요."></textarea>
+          <label class="detail-rate-spoiler">
+            <input id="detail-review-spoiler" type="checkbox" />
+            스포일러 포함
+          </label>
+          <div class="detail-rate-actions">
+            <button id="detail-rate-submit" type="submit" class="rating-btn">저장하기</button>
+          </div>
+          <p id="detail-rate-status" class="detail-rate-status muted"></p>
+          <p class="muted detail-rate-help">평점은 0.5 단위로 저장됩니다.</p>
+        </form>
+      `
+          : `
+        <div class="detail-auth-required">
+          <p class="muted">로그인 후 이 영화에 별점과 한줄평을 남길 수 있습니다.</p>
+          <div class="auth-required-actions auth-required-actions-block">
+            <a class="light-action-btn" href="./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}">로그인</a>
+            <a class="light-action-btn" href="./signup.html">회원가입</a>
+          </div>
+        </div>
+      `
+      }
     </section>
   `;
 
@@ -160,6 +214,25 @@ function renderDetail(detail, providerText, recommendations, reviews) {
       await renderMovie(nextMovieId);
     });
   });
+
+  stageEl.querySelectorAll(".review-recommend-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const reviewId = Number(button.dataset.reviewId);
+      if (!reviewId) return;
+      const res = await api(`/api/ratings/reviews/${reviewId}/recommend`, "PUT");
+      if (res.ok) {
+        await renderMovie(detail.id);
+        return;
+      }
+      if (res.status === 401) {
+        window.location.href = `./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+      }
+    });
+  });
+
+  if (isLoggedIn) {
+    initDetailRateForm(detail, myRating);
+  }
 }
 
 async function loadGenreBasedRecommendations(movieId, genreIds) {
@@ -184,6 +257,91 @@ function onSearchSubmit(event) {
   const query = searchInputEl.value.trim();
   if (!query) return;
   window.location.href = `./search.html?q=${encodeURIComponent(query)}`;
+}
+
+function initDetailRateForm(detail, myRating) {
+  const formEl = document.querySelector("#detail-rate-form");
+  const trackEl = document.querySelector("#detail-star-track");
+  const fillEl = document.querySelector("#detail-star-fill");
+  const valueEl = document.querySelector("#detail-star-value");
+  const reviewInputEl = document.querySelector("#detail-review-input");
+  const spoilerEl = document.querySelector("#detail-review-spoiler");
+  const submitEl = document.querySelector("#detail-rate-submit");
+  const statusEl = document.querySelector("#detail-rate-status");
+  if (!formEl || !trackEl || !fillEl || !valueEl || !reviewInputEl || !spoilerEl || !submitEl || !statusEl) return;
+
+  state.detailSelectedRating = Number(myRating?.rating || 0);
+  state.detailHoverRating = 0;
+  reviewInputEl.value = myRating?.reviewText || "";
+  spoilerEl.checked = Boolean(myRating?.isSpoiler);
+  syncDetailRatingUi();
+
+  trackEl.addEventListener("mousemove", (event) => {
+    state.detailHoverRating = resolveHalfStarRating(event, trackEl);
+    syncDetailRatingUi();
+  });
+  trackEl.addEventListener("mouseleave", () => {
+    state.detailHoverRating = 0;
+    syncDetailRatingUi();
+  });
+  trackEl.addEventListener("click", (event) => {
+    state.detailSelectedRating = resolveHalfStarRating(event, trackEl);
+    state.detailHoverRating = 0;
+    syncDetailRatingUi();
+  });
+
+  formEl.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (state.detailSelectedRating <= 0) return;
+    submitEl.disabled = true;
+    statusEl.textContent = "저장 중...";
+    statusEl.classList.remove("is-error", "is-ok");
+    try {
+      const payload = {
+        rating: state.detailSelectedRating,
+        title: detail.title || "제목 없음",
+        posterPath: detail.poster_path || null,
+        genreIds: (detail.genres || []).map((genre) => genre.id),
+        reviewText: reviewInputEl.value.trim(),
+        isSpoiler: spoilerEl.checked
+      };
+      const response = await api(`/api/ratings/${detail.id}`, "PUT", payload);
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = `./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          return;
+        }
+        statusEl.textContent = response.data?.message || "저장에 실패했습니다.";
+        statusEl.classList.add("is-error");
+        return;
+      }
+      statusEl.textContent = "저장되었습니다.";
+      statusEl.classList.remove("is-error");
+      statusEl.classList.add("is-ok");
+      await renderMovie(detail.id);
+    } finally {
+      submitEl.disabled = false;
+    }
+  });
+}
+
+function syncDetailRatingUi() {
+  const fillEl = document.querySelector("#detail-star-fill");
+  const valueEl = document.querySelector("#detail-star-value");
+  const submitEl = document.querySelector("#detail-rate-submit");
+  if (!fillEl || !valueEl || !submitEl) return;
+  const displayRating = state.detailHoverRating > 0 ? state.detailHoverRating : state.detailSelectedRating;
+  fillEl.style.width = `${(displayRating / 5) * 100}%`;
+  valueEl.textContent = `${displayRating.toFixed(1)}★`;
+  submitEl.disabled = state.detailSelectedRating <= 0;
+}
+
+function resolveHalfStarRating(event, trackEl) {
+  const rect = trackEl.getBoundingClientRect();
+  const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
+  const raw = ratio * 5;
+  const half = Math.round(raw * 2) / 2;
+  return Math.min(Math.max(half, 0.5), 5);
 }
 
 async function api(url, method = "GET", body) {

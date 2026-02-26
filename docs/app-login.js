@@ -7,7 +7,7 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
   const data = await request("/api/auth/login", "POST", payload);
   if (data.ok) {
     setTimeout(() => {
-      window.location.href = "./mypage.html";
+      window.location.href = "./index.html";
     }, 400);
     return;
   }
@@ -16,7 +16,7 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
 
 request("/api/auth/me", "GET").then((data) => {
   if (data.ok) {
-    window.location.href = "./mypage.html";
+    window.location.href = "./index.html";
   }
 });
 

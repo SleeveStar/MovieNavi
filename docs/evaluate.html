@@ -17,9 +17,7 @@
           <a href="./index.html">메인</a>
           <a href="./search.html">검색</a>
           <a href="./evaluate.html">평가 페이지</a>
-          <a href="./ratings.html">평가 목록</a>
-          <a data-menu="mypage" href="./mypage.html">마이페이지</a>
-        </nav>
+          <a href="./ratings.html">평가 목록</a>        </nav>
       </div>
       <div class="top-actions">
         <div class="search-toggle-wrap">
@@ -41,6 +39,7 @@
             <img id="eval-poster" class="eval-poster eval-poster-floating" alt="평가 대상 영화 포스터" />
           </div>
           <div id="eval-title" class="eval-title">불러오는 중...</div>
+          <p id="eval-meta" class="eval-meta muted"></p>
           <p id="eval-overview" class="eval-overview muted"></p>
           <label for="eval-review" class="eval-review-label">한줄평</label>
           <textarea
@@ -54,7 +53,10 @@
             <span>스포일러 포함</span>
           </label>
           <div id="eval-stars" class="eval-stars"></div>
-          <button id="eval-skip" class="eval-skip">넘기기</button>
+          <div class="eval-actions">
+            <button id="eval-rate-btn" class="eval-skip eval-rate-btn" type="button">평가하기</button>
+            <button id="eval-skip" class="eval-skip eval-skip-secondary" type="button">넘기기</button>
+          </div>
         </div>
       </section>
     </main>
@@ -64,6 +66,7 @@
     <script src="./app-eval.js"></script>
   </body>
 </html>
+
 
 
 

@@ -1,7 +1,7 @@
 (() => {
 const accountLinkEl = document.querySelector("#account-link");
 const topbarEl = document.querySelector(".topbar");
-const mypageMenuLinks = Array.from(document.querySelectorAll('a[data-menu="mypage"]'));
+const topActionsEl = document.querySelector(".top-actions");
 const searchToggleEl = document.querySelector("#header-search-toggle");
 const searchFormEl = document.querySelector("#search-form");
 const searchInputEl = document.querySelector("#search-input");
@@ -36,7 +36,7 @@ async function initAccountLink() {
       accountLinkEl.href = "./mypage.html";
       accountLinkEl.classList.add("is-logged-in");
       accountLinkEl.title = `${data.displayName}님`;
-      setMyPageMenuVisibility(true);
+      ensureLogoutButton();
       return;
     }
   } catch (error) {
@@ -45,7 +45,7 @@ async function initAccountLink() {
   accountLinkEl.textContent = "로그인/회원가입";
   accountLinkEl.href = "./login.html";
   accountLinkEl.classList.remove("is-logged-in");
-  setMyPageMenuVisibility(false);
+  removeLogoutButton();
 }
 
 function initTopbarAutoHide() {
@@ -78,10 +78,33 @@ function initTopbarAutoHide() {
   );
 }
 
-function setMyPageMenuVisibility(isVisible) {
-  mypageMenuLinks.forEach((link) => {
-    link.style.display = isVisible ? "" : "none";
+function ensureLogoutButton() {
+  if (!topActionsEl) return;
+  if (topActionsEl.querySelector("#logout-btn")) return;
+
+  const logoutBtn = document.createElement("button");
+  logoutBtn.id = "logout-btn";
+  logoutBtn.type = "button";
+  logoutBtn.className = "account-pill logout-pill";
+  logoutBtn.textContent = "로그아웃";
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+    } finally {
+      window.location.href = "./index.html";
+    }
   });
+  topActionsEl.appendChild(logoutBtn);
+}
+
+function removeLogoutButton() {
+  const logoutBtn = document.querySelector("#logout-btn");
+  if (logoutBtn) {
+    logoutBtn.remove();
+  }
 }
 
 function initMobileMenuToggle() {

@@ -17,9 +17,7 @@
           <a href="./index.html">메인</a>
           <a href="./search.html">검색</a>
           <a href="./evaluate.html">평가 페이지</a>
-          <a href="./ratings.html">평가 목록</a>
-          <a data-menu="mypage" href="./mypage.html">마이페이지</a>
-        </nav>
+          <a href="./ratings.html">평가 목록</a>        </nav>
       </div>
       <div class="top-actions">
         <div class="search-toggle-wrap">
@@ -34,17 +32,37 @@
       </div>
     </header>
 
-    <main class="layout rating-layout">
-      <section class="eval-side">
+    <main class="layout rating-layout ratings-dashboard-layout">
+      <section class="eval-side ratings-analytics">
+        <h2>내 취향 분석</h2>
+        <p id="rating-insight" class="muted">데이터를 불러오는 중입니다.</p>
+        <div class="genre-analytics-block">
+          <h3>많이 본 장르</h3>
+          <div id="genre-watch-chart" class="genre-chart"></div>
+        </div>
+        <div class="genre-analytics-block">
+          <h3>고평점 장르</h3>
+          <div id="genre-like-list" class="genre-like-list"></div>
+        </div>
+        <div class="genre-analytics-block">
+          <h3>다음 평가 추천</h3>
+          <div id="next-eval-list" class="next-eval-list"></div>
+        </div>
+      </section>
+
+      <section class="eval-side ratings-list-panel">
         <h2>내 평가 목록</h2>
         <ul id="rating-list" class="rating-list rating-list-page"></ul>
+        <div id="rating-pagination" class="rating-pagination"></div>
       </section>
     </main>
 
+    <script src="./config.js"></script>
     <script src="./header-auth.js"></script>
     <script src="./app-ratings.js"></script>
   </body>
 </html>
+
 
 
 

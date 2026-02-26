@@ -17,9 +17,7 @@
           <a href="./index.html">메인</a>
           <a href="./search.html">검색</a>
           <a href="./evaluate.html">평가 페이지</a>
-          <a href="./ratings.html">평가 목록</a>
-          <a data-menu="mypage" href="./mypage.html">마이페이지</a>
-        </nav>
+          <a href="./ratings.html">평가 목록</a>        </nav>
       </div>
       <div class="top-actions">
         <div class="search-toggle-wrap">
@@ -39,7 +37,8 @@
         <h2>회원가입 1단계</h2>
         <form id="signup-form" class="auth-form">
           <input id="signup-email" type="email" placeholder="이메일" required />
-          <input id="signup-password" type="password" placeholder="비밀번호(8자 이상)" required />
+          <input id="signup-password" type="password" placeholder="비밀번호(8~20자)" required />
+          <p class="auth-help">비밀번호는 영문 대문자 1개 이상 + 특수문자 1개 이상을 포함해야 합니다.</p>
           <input id="signup-name" type="text" placeholder="닉네임" required />
           <button type="submit" class="eval-skip">인증 코드 발급</button>
         </form>
@@ -67,6 +66,7 @@
     <script src="./app-auth.js"></script>
   </body>
 </html>
+
 
 
 
