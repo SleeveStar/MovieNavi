@@ -75,7 +75,7 @@ async function renderMovie(movieId) {
 
   const providerText = formatProviders(providerData, state.region);
   const reviews = reviewsRes.ok && Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
-  const isLoggedIn = meRes.ok;
+  const isLoggedIn = Boolean(meRes.ok && meRes.data?.displayName);
   const myRating = myRatingsRes.ok && Array.isArray(myRatingsRes.data)
     ? myRatingsRes.data.find((item) => Number(item.movieId) === Number(movieId)) || null
     : null;

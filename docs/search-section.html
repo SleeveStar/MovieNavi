@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOVIENAVI - 검색</title>
+    <title>MOVIENAVI - 섹션 더보기</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" type="image/png" href="./logos/tab_logo.png" />
   </head>
-  <body class="home-page search-page">
-        <header class="topbar">
+  <body class="home-page search-page search-section-page">
+    <header class="topbar">
       <div class="top-left">
         <a class="brand" href="./index.html" aria-label="MOVIENAVI 메인으로 이동">
           <img class="brand-logo" src="./logos/movienavi_logo_gradient.png" alt="MOVIENAVI" />
@@ -17,7 +17,8 @@
           <a href="./index.html">메인</a>
           <a href="./search.html">검색</a>
           <a href="./evaluate.html">평가 페이지</a>
-          <a href="./ratings.html">평가 목록</a>        </nav>
+          <a href="./ratings.html">평가 목록</a>
+        </nav>
       </div>
       <div class="top-actions">
         <div class="search-toggle-wrap">
@@ -35,42 +36,16 @@
     <main class="layout">
       <section class="section-block search-panel">
         <div class="section-head">
-          <h2>검색 결과</h2>
+          <h2 id="section-page-title">검색 더보기</h2>
+          <a id="section-page-back" class="search-more-btn" href="./search.html">검색으로 돌아가기</a>
         </div>
-        <form id="search-page-form" class="search-page-form" autocomplete="off">
-          <input
-            id="search-page-input"
-            type="search"
-            placeholder="영화 제목/장르/카테고리 검색"
-            aria-label="검색어 입력"
-          />
-          <button type="submit" class="search-page-submit">검색</button>
-          <div id="search-page-suggestions" class="search-suggest" hidden></div>
-        </form>
-        <div class="filter-row">
-          <select id="filter-sort" aria-label="정렬">
-            <option value="popularity">인기순</option>
-            <option value="rating">평점순</option>
-            <option value="latest">최신순</option>
-          </select>
-          <select id="filter-genre" aria-label="장르">
-            <option value="">전체 장르</option>
-          </select>
-          <select id="filter-year" aria-label="연도">
-            <option value="">전체 연도</option>
-          </select>
-        </div>
-        <div id="search-feedback" class="state-line"></div>
-        <div id="search-results" class="movie-grid" aria-live="polite"></div>
+        <div id="section-page-feedback" class="state-line"></div>
+        <div id="section-page-results" class="movie-grid" aria-live="polite"></div>
       </section>
     </main>
 
     <script src="./config.js"></script>
     <script src="./header-auth.js"></script>
-    <script src="./app-search.js"></script>
+    <script src="./app-search-section.js"></script>
   </body>
 </html>
-
-
-
-

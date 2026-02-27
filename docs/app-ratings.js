@@ -44,25 +44,17 @@ bootstrap();
 
 async function bootstrap() {
   const me = await api("/api/auth/me");
-  if (!me.ok) {
-    ratingListEl.innerHTML =
-      `
-      <li class="auth-required-item">
-        <p class="muted">로그인이 필요합니다.</p>
-        <div class="auth-required-actions">
-          <a class="light-action-btn" href="./login.html">로그인</a>
-          <a class="light-action-btn" href="./signup.html">회원가입</a>
-        </div>
-      </li>
-      `;
-    if (ratingInsightEl) ratingInsightEl.textContent = "로그인 후 취향 분석을 볼 수 있습니다.";
-    if (genreWatchChartEl) genreWatchChartEl.innerHTML = "";
-    if (genreLikeListEl) genreLikeListEl.innerHTML = "";
-    if (nextEvalListEl) nextEvalListEl.innerHTML = "";
+  if (!(me.ok && me.data?.displayName)) {
+    redirectToLogin();
     return;
   }
   await loadAnalyticsData();
   await renderRatingList();
+}
+
+function redirectToLogin() {
+  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  window.location.href = `./login.html?next=${next}`;
 }
 
 async function loadAnalyticsData() {

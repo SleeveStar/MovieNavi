@@ -17,19 +17,25 @@ const state = {
   suggestionTimer: null
 };
 
-const searchInputEl = document.querySelector("#search-input");
+const pageSearchInputEl = document.querySelector("#search-page-input");
+const headerSearchInputEl = document.querySelector("#search-input");
+const searchInputEl = pageSearchInputEl || headerSearchInputEl;
 const searchFeedbackEl = document.querySelector("#search-feedback");
 const searchResultsEl = document.querySelector("#search-results");
 const sortFilterEl = document.querySelector("#filter-sort");
 const genreFilterEl = document.querySelector("#filter-genre");
 const yearFilterEl = document.querySelector("#filter-year");
-const searchFormEl = document.querySelector("#search-form");
-const searchSuggestionsEl = document.querySelector("#search-suggestions");
+const pageSearchFormEl = document.querySelector("#search-page-form");
+const headerSearchFormEl = document.querySelector("#search-form");
+const searchFormEl = pageSearchFormEl || headerSearchFormEl;
+const searchSuggestionsEl = document.querySelector("#search-page-suggestions") || document.querySelector("#search-suggestions");
 searchResultsEl.classList.remove("movie-grid");
 
-searchFormEl.addEventListener("submit", onSearchSubmit);
+if (searchFormEl) {
+  searchFormEl.addEventListener("submit", onSearchSubmit);
+}
 [sortFilterEl, genreFilterEl, yearFilterEl].forEach((el) => el.addEventListener("change", applyFilters));
-if (searchSuggestionsEl) {
+if (searchSuggestionsEl && searchInputEl && searchFormEl) {
   searchInputEl.addEventListener("input", onSearchInput);
   searchInputEl.addEventListener("keydown", onSearchInputKeyDown);
   searchInputEl.addEventListener("focus", () => {
@@ -54,7 +60,8 @@ async function bootstrap() {
     populateGenreFilter();
     populateYearFilter();
 
-    const query = new URLSearchParams(window.location.search).get("q");
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get("q");
     if (query) {
       searchInputEl.value = query;
       await search(query);
@@ -144,7 +151,7 @@ async function onSearchSubmit(event) {
   if (!query) return;
   hideSuggestions();
   await search(query);
-  history.replaceState(null, "", `./search.html?q=${encodeURIComponent(query)}`);
+  history.replaceState(null, "", buildSearchUrl(query));
 }
 
 async function onSearchInput() {
@@ -200,6 +207,7 @@ function onSearchInputKeyDown(event) {
 
 function onDocumentClick(event) {
   if (!searchSuggestionsEl) return;
+  if (!searchFormEl) return;
   if (searchFormEl.contains(event.target)) return;
   hideSuggestions();
 }
@@ -372,22 +380,109 @@ function renderSectionResults(sections) {
   searchResultsEl.innerHTML = "";
   sections.forEach((section) => {
     const wrap = document.createElement("section");
-    wrap.className = "section-block";
+    wrap.className = "section-block search-result-section";
 
     const head = document.createElement("div");
     head.className = "section-head";
     head.innerHTML = `<h2>${escapeHtml(section.title)}</h2>`;
+    const moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "search-more-btn";
+    moreBtn.textContent = "더보기";
+    moreBtn.addEventListener("click", () => {
+      const query = searchInputEl.value.trim();
+      if (!query) return;
+      window.location.href = buildSectionPageUrl(query, section.type);
+    });
+    head.appendChild(moreBtn);
 
-    const grid = document.createElement("div");
-    grid.className = "movie-grid";
-    section.movies.forEach((movie) => grid.appendChild(createMovieCard(movie)));
+    const row = document.createElement("div");
+    row.className = "search-section-row";
+    section.movies.forEach((movie) => row.appendChild(createMovieCard(movie)));
 
     wrap.appendChild(head);
-    wrap.appendChild(grid);
+    wrap.appendChild(row);
     searchResultsEl.appendChild(wrap);
   });
 }
 
+function buildSearchUrl(query) {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  return `./search.html?${params.toString()}`;
+}
+
+function buildSectionPageUrl(query, sectionType) {
+  const params = new URLSearchParams();
+  params.set("q", query);
+  params.set("section", sectionType);
+  return `./search-section.html?${params.toString()}`;
+}
+
+function applySuggestion(item) {
+  searchInputEl.value = item.value || "";
+  hideSuggestions();
+  if (item.movieId) {
+    window.location.href = `./movie-detail.html?id=${item.movieId}`;
+    return;
+  }
+  const query = searchInputEl.value.trim();
+  if (!query) return;
+  void search(query);
+  history.replaceState(null, "", buildSearchUrl(query));
+}
+
+function renderSearchSkeleton() {
+  searchResultsEl.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "search-section-row";
+  for (let i = 0; i < 6; i += 1) {
+    const skeleton = document.createElement("article");
+    skeleton.className = "movie-card movie-card-carousel skeleton-card";
+    skeleton.innerHTML = `
+      <div class="skeleton-poster"></div>
+      <div class="movie-meta">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line short"></div>
+      </div>
+    `;
+    grid.appendChild(skeleton);
+  }
+  searchResultsEl.appendChild(grid);
+}
+
+function createMovieCard(movie) {
+  const card = document.createElement("article");
+  card.className = "movie-card movie-card-carousel";
+  const userRating = state.ratings[movie.id]?.rating || 0;
+  const year = movie.release_date ? movie.release_date.slice(0, 4) : "미정";
+  card.innerHTML = `
+    <img src="${movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : ""}" alt="${escapeHtml(movie.title || "")}" />
+    <div class="movie-meta">
+      <h3 class="movie-title">${escapeHtml(movie.title || "제목 없음")}</h3>
+      <p class="movie-sub">${year} · TMDB ${Number(movie.vote_average || 0).toFixed(1)}</p>
+      <p class="movie-sub">내 평가 ${userRating ? `${userRating}★` : "없음"}</p>
+      <button class="detail-btn" type="button">상세 보기</button>
+    </div>
+  `;
+  card.querySelector(".detail-btn").addEventListener("click", () => {
+    window.location.href = `./movie-detail.html?id=${movie.id}`;
+  });
+  return card;
+}
+
+function renderState(target, type, message) {
+  target.innerHTML = `<div class="state-chip state-${type}">${escapeHtml(message)}</div>`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 async function buildSuggestions(query) {
   const normalized = normalizeKeyword(query);
   const moviePromise = tmdb("/search/movie", { query, include_adult: false, page: 1 });
@@ -452,69 +547,4 @@ function hideSuggestions() {
   state.activeSuggestionIndex = -1;
   searchSuggestionsEl.hidden = true;
   searchSuggestionsEl.innerHTML = "";
-}
-
-function applySuggestion(item) {
-  searchInputEl.value = item.value || "";
-  hideSuggestions();
-  if (item.movieId) {
-    window.location.href = `./movie-detail.html?id=${item.movieId}`;
-    return;
-  }
-  const query = searchInputEl.value.trim();
-  if (!query) return;
-  void search(query);
-  history.replaceState(null, "", `./search.html?q=${encodeURIComponent(query)}`);
-}
-
-function renderSearchSkeleton() {
-  searchResultsEl.innerHTML = "";
-  const grid = document.createElement("div");
-  grid.className = "movie-grid";
-  for (let i = 0; i < 10; i += 1) {
-    const skeleton = document.createElement("article");
-    skeleton.className = "movie-card skeleton-card";
-    skeleton.innerHTML = `
-      <div class="skeleton-poster"></div>
-      <div class="movie-meta">
-        <div class="skeleton-line"></div>
-        <div class="skeleton-line short"></div>
-      </div>
-    `;
-    grid.appendChild(skeleton);
-  }
-  searchResultsEl.appendChild(grid);
-}
-
-function createMovieCard(movie) {
-  const card = document.createElement("article");
-  card.className = "movie-card";
-  const userRating = state.ratings[movie.id]?.rating || 0;
-  const year = movie.release_date ? movie.release_date.slice(0, 4) : "미정";
-  card.innerHTML = `
-    <img src="${movie.poster_path ? `${IMAGE_BASE_URL}${movie.poster_path}` : ""}" alt="${escapeHtml(movie.title || "")}" />
-    <div class="movie-meta">
-      <h3 class="movie-title">${escapeHtml(movie.title || "제목 없음")}</h3>
-      <p class="movie-sub">${year} · TMDB ${Number(movie.vote_average || 0).toFixed(1)}</p>
-      <p class="movie-sub">내 평가 ${userRating ? `${userRating}★` : "없음"}</p>
-      <button class="detail-btn" type="button">상세 보기</button>
-    </div>
-  `;
-  card.querySelector(".detail-btn").addEventListener("click", () => {
-    window.location.href = `./movie-detail.html?id=${movie.id}`;
-  });
-  return card;
-}
-
-function renderState(target, type, message) {
-  target.innerHTML = `<div class="state-chip state-${type}">${escapeHtml(message)}</div>`;
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }

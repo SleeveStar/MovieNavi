@@ -15,7 +15,7 @@ document.querySelector("#login-form").addEventListener("submit", async (event) =
 });
 
 request("/api/auth/me", "GET").then((data) => {
-  if (data.ok) {
+  if (data.ok && data.displayName) {
     window.location.href = "./index.html";
   }
 });

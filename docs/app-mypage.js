@@ -12,7 +12,7 @@ bootstrap();
 
 async function bootstrap() {
   const me = await api("/api/auth/me");
-  if (!me.ok) {
+  if (!(me.ok && me.data?.displayName)) {
     meSummaryEl.textContent = "로그인이 필요합니다. 로그인 페이지로 이동합니다.";
     setTimeout(() => {
       window.location.href = "./login.html";

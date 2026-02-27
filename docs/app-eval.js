@@ -1,7 +1,6 @@
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500";
 const TOKEN_STORAGE_KEY = "movienavi_tmdb_token";
-const EVAL_PLACEHOLDER_IMAGE = "./logos/movienavi_logo_gradient.png";
 const EVAL_SKIPPED_IDS_KEY = "movienavi_eval_skipped_ids";
 
 const state = {
@@ -31,7 +30,6 @@ const evalSpoilerEl = document.querySelector("#eval-spoiler");
 const evalStarsEl = document.querySelector("#eval-stars");
 const evalSkipBtn = document.querySelector("#eval-skip");
 const evalRateBtn = document.querySelector("#eval-rate-btn");
-const AUTH_ACTIONS_ID = "eval-auth-required-actions";
 
 evalSkipBtn.addEventListener("click", async () => {
   await transitionToNextMovie();
@@ -48,30 +46,19 @@ bootstrap();
 
 async function bootstrap() {
   try {
+    const me = await api("/api/auth/me");
+    state.isLoggedIn = Boolean(me.ok && me.data?.displayName);
+    if (!state.isLoggedIn) {
+      redirectToLogin();
+      return;
+    }
+
     if (!state.token || state.token.includes("PASTE_YOUR_TMDB")) {
       const entered = window.prompt("TMDB Read Access Token을 입력하세요.");
       if (!entered) return;
       state.token = entered.trim();
       localStorage.setItem(TOKEN_STORAGE_KEY, state.token);
     }
-
-    const me = await api("/api/auth/me");
-    state.isLoggedIn = me.ok;
-    if (!state.isLoggedIn) {
-      evalPosterEl.src = EVAL_PLACEHOLDER_IMAGE;
-      evalPosterEl.alt = "로그인 안내 이미지";
-      evalPosterEl.classList.add("eval-poster-placeholder");
-      removeAuthRequiredActions();
-      evalTitleEl.textContent = "로그인이 필요합니다.";
-      evalMetaEl.textContent = "";
-      evalOverviewEl.textContent = "로그인 후 평가를 저장할 수 있습니다.";
-      renderAuthRequiredActions();
-      evalSkipBtn.disabled = true;
-      evalRateBtn.disabled = true;
-      evalStarsEl.innerHTML = "";
-      return;
-    }
-    removeAuthRequiredActions();
     state.evalSeenIds = loadSeenIdsFromSession();
 
     await Promise.all([loadRatingsFromApi(), loadGenres()]);
@@ -82,6 +69,11 @@ async function bootstrap() {
   } catch (error) {
     console.error(error);
   }
+}
+
+function redirectToLogin() {
+  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  window.location.href = `./login.html?next=${next}`;
 }
 
 function resolveConfig(key, fallback) {
@@ -236,22 +228,6 @@ async function loadGenres() {
     acc[genre.id] = genre.name;
     return acc;
   }, {});
-}
-
-function renderAuthRequiredActions() {
-  const wrap = document.createElement("div");
-  wrap.id = AUTH_ACTIONS_ID;
-  wrap.className = "auth-required-actions auth-required-actions-block";
-  wrap.innerHTML = `
-    <a class="light-action-btn" href="./login.html">로그인</a>
-    <a class="light-action-btn" href="./signup.html">회원가입</a>
-  `;
-  evalOverviewEl.insertAdjacentElement("afterend", wrap);
-}
-
-function removeAuthRequiredActions() {
-  const existing = document.getElementById(AUTH_ACTIONS_ID);
-  if (existing) existing.remove();
 }
 
 async function setRating(movie, rating) {

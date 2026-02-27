@@ -25,6 +25,10 @@ const personalizedEl = document.querySelector("#personalized");
 const personalTitleEl = document.querySelector("#personal-title");
 const personalHintEl = document.querySelector("#personalized-hint");
 const searchInputEl = document.querySelector("#search-input");
+const carouselStateMap = new WeakMap();
+const CAROUSEL_TRANSITION_MS = 760;
+const CAROUSEL_STEP_PER_CLICK = 4;
+const CAROUSEL_EASING = "cubic-bezier(0.22, 0.8, 0.2, 1)";
 
 document.querySelector("#search-form").addEventListener("submit", onSearchSubmit);
 document.querySelector("#hero-search-focus").addEventListener("click", () => {
@@ -104,7 +108,9 @@ async function api(url, method = "GET", body) {
 }
 
 async function loadProfileAndRatings() {
-  const me = await api("/api/auth/me");
+  const me = typeof window.getMovienaviAuthState === "function"
+    ? await window.getMovienaviAuthState()
+    : await api("/api/auth/me");
   if (me.ok && me.data?.displayName) {
     state.isLoggedIn = true;
     state.userName = me.data.displayName;
@@ -113,12 +119,19 @@ async function loadProfileAndRatings() {
     ? `${state.userName}님이 좋아하실만한 영화`
     : "회원님이 좋아하실만한 영화";
 
+  if (!state.isLoggedIn) {
+    state.ratings = {};
+    return;
+  }
+
   const ratings = await api("/api/ratings");
   if (ratings.ok && Array.isArray(ratings.data)) {
     state.ratings = ratings.data.reduce((acc, item) => {
       acc[item.movieId] = item;
       return acc;
     }, {});
+  } else {
+    state.ratings = {};
   }
 }
 
@@ -232,10 +245,53 @@ function nextHeroSlide() {
 function renderCarousel(container, movies) {
   if (!movies.length) {
     renderState(container, "empty", "데이터가 없습니다.");
+    carouselStateMap.delete(container);
     return;
   }
+
   container.innerHTML = "";
-  movies.forEach((movie) => container.appendChild(createMovieCard(movie)));
+
+  if (movies.length === 1) {
+    container.appendChild(createMovieCard(movies[0]));
+    carouselStateMap.delete(container);
+    return;
+  }
+
+  const cloneCount = Math.min(movies.length, resolveCloneCount(container));
+  const extendedMovies = [...movies.slice(-cloneCount), ...movies, ...movies.slice(0, cloneCount)];
+  const track = document.createElement("div");
+  track.className = "carousel-track";
+
+  extendedMovies.forEach((movie, index) => {
+    const card = createMovieCard(movie);
+    if (index < cloneCount || index >= cloneCount + movies.length) {
+      card.classList.add("carousel-slide-clone");
+    }
+    track.appendChild(card);
+  });
+
+  container.appendChild(track);
+
+  const step = measureCarouselStep(track);
+  const state = {
+    container,
+    track,
+    slideCount: movies.length,
+    cloneCount,
+    index: cloneCount,
+    step,
+    isTransitioning: false
+  };
+
+  track.style.transition = "none";
+  track.style.transform = `translate3d(${-state.index * state.step}px, 0, 0)`;
+
+  track.addEventListener("transitionend", (event) => {
+    if (event.propertyName !== "transform") return;
+    handleCarouselBoundary(state);
+  });
+
+  carouselStateMap.set(container, state);
 }
 
 function createMovieCard(movie) {
@@ -281,8 +337,64 @@ function renderState(target, type, message) {
 function scrollCarousel(targetSelector, dir) {
   const el = document.querySelector(targetSelector);
   if (!el) return;
-  const amount = Math.max(280, Math.floor(el.clientWidth * 0.7));
-  el.scrollBy({ left: dir === "next" ? amount : -amount, behavior: "smooth" });
+  const state = carouselStateMap.get(el);
+  if (!state) return;
+  if (state.isTransitioning) return;
+
+  const delta = dir === "prev" ? -CAROUSEL_STEP_PER_CLICK : CAROUSEL_STEP_PER_CLICK;
+  state.index += delta;
+  state.isTransitioning = true;
+  applyCarouselTransform(state, true);
+}
+
+function resolveCloneCount(container) {
+  const cardStep = 206;
+  const viewport = Math.max(1, container.clientWidth);
+  const visible = Math.max(1, Math.ceil(viewport / cardStep));
+  return visible + 1;
+}
+
+function measureCarouselStep(track) {
+  const first = track.children[0];
+  const second = track.children[1];
+  if (!first) return 206;
+  if (second) {
+    const step = second.offsetLeft - first.offsetLeft;
+    if (step > 0) return step;
+  }
+  return first.getBoundingClientRect().width || 206;
+}
+
+function applyCarouselTransform(state, animated) {
+  state.track.style.transition = animated
+    ? `transform ${CAROUSEL_TRANSITION_MS}ms ${CAROUSEL_EASING}`
+    : "none";
+  state.track.style.transform = `translate3d(${-state.index * state.step}px, 0, 0)`;
+}
+
+function handleCarouselBoundary(state) {
+  const minIndex = state.cloneCount;
+  const maxIndex = state.cloneCount + state.slideCount - 1;
+
+  if (state.index > maxIndex) {
+    jumpToIndex(state, minIndex);
+    state.isTransitioning = false;
+    return;
+  }
+  if (state.index < minIndex) {
+    jumpToIndex(state, maxIndex);
+    state.isTransitioning = false;
+    return;
+  }
+  state.isTransitioning = false;
+}
+
+function jumpToIndex(state, index) {
+  state.index = index;
+  state.track.style.transition = "none";
+  state.track.style.transform = `translate3d(${-state.index * state.step}px, 0, 0)`;
+  void state.track.offsetWidth;
+  state.track.style.transition = `transform ${CAROUSEL_TRANSITION_MS}ms ${CAROUSEL_EASING}`;
 }
 
 function dedupeMovies(movies) {
