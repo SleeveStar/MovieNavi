@@ -196,8 +196,8 @@ function renderDetail(detail, providerText, recommendations, reviews, isLoggedIn
         <div class="detail-auth-required">
           <p class="muted">로그인 후 이 영화에 별점과 한줄평을 남길 수 있습니다.</p>
           <div class="auth-required-actions auth-required-actions-block">
-            <a class="light-action-btn" href="./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}">로그인</a>
-            <a class="light-action-btn" href="./signup.html">회원가입</a>
+            <a class="light-action-btn" href="/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}">로그인</a>
+            <a class="light-action-btn" href="/signup">회원가입</a>
           </div>
         </div>
       `
@@ -209,7 +209,7 @@ function renderDetail(detail, providerText, recommendations, reviews, isLoggedIn
     button.addEventListener("click", async () => {
       const nextMovieId = Number(button.dataset.movieId);
       if (!nextMovieId) return;
-      history.pushState(null, "", `./movie-detail.html?id=${nextMovieId}`);
+      history.pushState(null, "", `/movie?id=${nextMovieId}`);
       window.scrollTo({ top: 0, behavior: "smooth" });
       await renderMovie(nextMovieId);
     });
@@ -225,7 +225,7 @@ function renderDetail(detail, providerText, recommendations, reviews, isLoggedIn
         return;
       }
       if (res.status === 401) {
-        window.location.href = `./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
       }
     });
   });
@@ -256,7 +256,7 @@ function onSearchSubmit(event) {
   event.preventDefault();
   const query = searchInputEl.value.trim();
   if (!query) return;
-  window.location.href = `./search.html?q=${encodeURIComponent(query)}`;
+  window.location.href = `/search?q=${encodeURIComponent(query)}`;
 }
 
 function initDetailRateForm(detail, myRating) {
@@ -308,7 +308,7 @@ function initDetailRateForm(detail, myRating) {
       const response = await api(`/api/ratings/${detail.id}`, "PUT", payload);
       if (!response.ok) {
         if (response.status === 401) {
-          window.location.href = `./login.html?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
           return;
         }
         statusEl.textContent = response.data?.message || "저장에 실패했습니다.";
@@ -435,3 +435,4 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+

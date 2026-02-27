@@ -409,21 +409,21 @@ function renderSectionResults(sections) {
 function buildSearchUrl(query) {
   const params = new URLSearchParams();
   params.set("q", query);
-  return `./search.html?${params.toString()}`;
+  return `/search?${params.toString()}`;
 }
 
 function buildSectionPageUrl(query, sectionType) {
   const params = new URLSearchParams();
   params.set("q", query);
   params.set("section", sectionType);
-  return `./search-section.html?${params.toString()}`;
+  return `/search-section?${params.toString()}`;
 }
 
 function applySuggestion(item) {
   searchInputEl.value = item.value || "";
   hideSuggestions();
   if (item.movieId) {
-    window.location.href = `./movie-detail.html?id=${item.movieId}`;
+    window.location.href = `/movie?id=${item.movieId}`;
     return;
   }
   const query = searchInputEl.value.trim();
@@ -466,7 +466,7 @@ function createMovieCard(movie) {
     </div>
   `;
   card.querySelector(".detail-btn").addEventListener("click", () => {
-    window.location.href = `./movie-detail.html?id=${movie.id}`;
+    window.location.href = `/movie?id=${movie.id}`;
   });
   return card;
 }
@@ -548,3 +548,4 @@ function hideSuggestions() {
   searchSuggestionsEl.hidden = true;
   searchSuggestionsEl.innerHTML = "";
 }
+

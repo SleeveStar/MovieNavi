@@ -18,6 +18,7 @@ const state = {
 const heroEl = document.querySelector("#hero");
 const heroBgAEl = document.querySelector(".hero-bg-a");
 const heroBgBEl = document.querySelector(".hero-bg-b");
+const heroSlideTitleEl = document.querySelector("#hero-slide-title");
 const trendingEl = document.querySelector("#trending");
 const popularEl = document.querySelector("#popular");
 const topRatedEl = document.querySelector("#top-rated");
@@ -136,8 +137,24 @@ async function loadProfileAndRatings() {
 }
 
 async function loadTrending() {
-  const data = await tmdb("/trending/movie/week");
-  const movies = data.results?.slice(0, 20) || [];
+  const [weekly, daily] = await Promise.all([
+    api("/api/kobis/boxoffice/cache/weekly?limit=20"),
+    api("/api/kobis/boxoffice/cache/daily?limit=20")
+  ]);
+
+  const weeklyRows = weekly.ok ? (weekly.data?.items || []) : [];
+  const dailyRows = daily.ok ? (daily.data?.items || []) : [];
+  const kobisRows = mergeKoreanTrendRows(weeklyRows, dailyRows);
+
+  let movies = await mapKobisRowsToTmdbMovies(kobisRows);
+
+  // Only use TMDB popular fallback when KOBIS cache is empty or unavailable.
+  if (!kobisRows.length) {
+    const fallback = await tmdb("/movie/popular", { page: 1 });
+    movies = dedupeMovies([...movies, ...(fallback.results || [])]).slice(0, 20);
+  }
+  movies = movies.slice(0, 20);
+
   renderCarousel(trendingEl, movies);
   setupHeroSlides(movies);
 }
@@ -191,41 +208,47 @@ function onSearchSubmit(event) {
   event.preventDefault();
   const query = searchInputEl.value.trim();
   if (!query) return;
-  window.location.href = `./search.html?q=${encodeURIComponent(query)}`;
+  window.location.href = `/search?q=${encodeURIComponent(query)}`;
 }
 
 function setupHeroSlides(movies) {
   const slides = movies
     .filter((movie) => movie.backdrop_path)
     .slice(0, 5)
-    .map((movie) => `${BACKDROP_BASE_URL}${movie.backdrop_path}`);
+    .map((movie) => ({
+      backdropUrl: `${BACKDROP_BASE_URL}${movie.backdrop_path}`,
+      title: movie.title || "제목 없음"
+    }));
   if (!slides.length) return;
 
   state.heroSlides = slides;
   state.heroSlideIndex = 0;
-  heroBgAEl.style.backgroundImage = `url(${slides[0]})`;
+  heroBgAEl.style.backgroundImage = `url(${slides[0].backdropUrl})`;
   heroBgAEl.classList.add("active");
   heroBgBEl.classList.remove("active");
   heroBgBEl.style.backgroundImage = "";
+  if (heroSlideTitleEl) {
+    heroSlideTitleEl.textContent = slides[0].title;
+  }
 
   if (state.heroTimer) {
     clearInterval(state.heroTimer);
     state.heroTimer = null;
   }
   if (slides.length > 1) {
-    state.heroTimer = setInterval(nextHeroSlide, 5000);
+    state.heroTimer = setInterval(nextHeroSlide, 7000);
   }
 }
 
 function nextHeroSlide() {
   if (!state.heroSlides.length) return;
   const nextIndex = (state.heroSlideIndex + 1) % state.heroSlides.length;
-  const nextUrl = state.heroSlides[nextIndex];
+  const nextSlide = state.heroSlides[nextIndex];
 
   const active = heroBgAEl.classList.contains("active") ? heroBgAEl : heroBgBEl;
   const idle = active === heroBgAEl ? heroBgBEl : heroBgAEl;
 
-  idle.style.backgroundImage = `url(${nextUrl})`;
+  idle.style.backgroundImage = `url(${nextSlide.backdropUrl})`;
   idle.classList.remove("exit");
   idle.classList.add("enter");
   void idle.offsetWidth;
@@ -239,6 +262,9 @@ function nextHeroSlide() {
     active.classList.remove("exit");
   }, 720);
 
+  if (heroSlideTitleEl) {
+    heroSlideTitleEl.textContent = nextSlide.title;
+  }
   state.heroSlideIndex = nextIndex;
 }
 
@@ -309,7 +335,7 @@ function createMovieCard(movie) {
     </div>
   `;
   card.querySelector(".detail-btn").addEventListener("click", () => {
-    window.location.href = `./movie-detail.html?id=${movie.id}`;
+    window.location.href = `/movie?id=${movie.id}`;
   });
   return card;
 }
@@ -401,6 +427,71 @@ function dedupeMovies(movies) {
   return movies.filter((movie, idx, arr) => arr.findIndex((t) => t.id === movie.id) === idx);
 }
 
+function dedupeByMovieName(rows) {
+  return rows.filter((row, idx, arr) => arr.findIndex((x) => x.movieNm === row.movieNm) === idx);
+}
+
+function mergeKoreanTrendRows(weeklyRows, dailyRows) {
+  const scoreByMovie = new Map();
+
+  const addScore = (rows, weight) => {
+    rows.forEach((row, idx) => {
+      const name = (row.movieNm || "").trim();
+      if (!name) return;
+      const rank = Number(row.rank || idx + 1);
+      const score = Math.max(0, 21 - rank) * weight;
+      const existing = scoreByMovie.get(name) || {
+        row,
+        score: 0
+      };
+      existing.score += score;
+      if (!existing.row.openDt && row.openDt) {
+        existing.row = row;
+      }
+      scoreByMovie.set(name, existing);
+    });
+  };
+
+  // Weekly is the base trend, daily adds recent momentum.
+  addScore(weeklyRows, 1.0);
+  addScore(dailyRows, 0.7);
+
+  return Array.from(scoreByMovie.values())
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.row)
+    .slice(0, 20);
+}
+
+async function mapKobisRowsToTmdbMovies(rows) {
+  if (!rows.length) return [];
+
+  const mapped = await Promise.all(
+    rows.map(async (row) => {
+      const title = (row.movieNm || "").trim();
+      if (!title) return null;
+
+      const openYear = row.openDt && row.openDt.length >= 4 ? row.openDt.slice(0, 4) : "";
+      const baseParams = {
+        query: title,
+        include_adult: false,
+        page: 1
+      };
+
+      // 1) No year filter first (re-release movies often mismatch year)
+      let search = await tmdb("/search/movie", baseParams);
+      let candidates = Array.isArray(search.results) ? search.results : [];
+      if (!candidates.length && openYear) {
+        // 2) Retry with year as optional refinement
+        search = await tmdb("/search/movie", { ...baseParams, year: openYear });
+        candidates = Array.isArray(search.results) ? search.results : [];
+      }
+      return candidates.find((movie) => movie.poster_path || movie.backdrop_path) || candidates[0] || null;
+    })
+  );
+
+  return dedupeMovies(mapped.filter(Boolean));
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -409,3 +500,4 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+

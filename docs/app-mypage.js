@@ -5,7 +5,7 @@ const logoutBtn = document.querySelector("#logout-btn");
 
 logoutBtn.addEventListener("click", async () => {
   await api("/api/auth/logout", "POST");
-  window.location.href = "./login.html";
+  window.location.href = "/login";
 });
 
 bootstrap();
@@ -15,7 +15,7 @@ async function bootstrap() {
   if (!(me.ok && me.data?.displayName)) {
     meSummaryEl.textContent = "로그인이 필요합니다. 로그인 페이지로 이동합니다.";
     setTimeout(() => {
-      window.location.href = "./login.html";
+      window.location.href = "/login";
     }, 800);
     return;
   }
@@ -45,4 +45,5 @@ async function api(url, method = "GET", body) {
   const data = await response.json().catch(() => null);
   return { ok: response.ok, status: response.status, data };
 }
+
 

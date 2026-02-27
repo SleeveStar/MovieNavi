@@ -54,7 +54,7 @@ async function bootstrap() {
 
 function redirectToLogin() {
   const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-  window.location.href = `./login.html?next=${next}`;
+  window.location.href = `/login?next=${next}`;
 }
 
 async function loadAnalyticsData() {
@@ -293,7 +293,7 @@ async function renderNextEvalRecommendations(items) {
               <strong>${escapeHtml(movie.title || "제목 없음")}</strong>
               <span>${year} · TMDB ${score}</span>
             </div>
-            <a class="light-action-btn next-eval-link" href="./movie-detail.html?id=${Number(movie.id)}">상세보기</a>
+            <a class="light-action-btn next-eval-link" href="/movie?id=${Number(movie.id)}">상세보기</a>
           </article>
         `;
       })
@@ -388,4 +388,5 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
 

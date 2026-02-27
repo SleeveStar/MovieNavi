@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOVIENAVI - 커뮤니티</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" type="image/png" href="./logos/tab_logo.png" />
+  </head>
+  <body class="ratings-page community-page community-main-page">
+    <header class="topbar community-topbar">
+      <div class="top-left community-top-left">
+        <a class="brand community-brand" href="/community" aria-label="커뮤니티 메인으로 이동">
+          <img class="community-brand-logo" src="./logos/movienavi_wordmark_to_community.png" alt="MOVIENAVI Community" />
+        </a>
+      </div>
+
+      <form id="community-global-search" class="community-global-search" role="search">
+        <input id="community-search-input" type="search" placeholder="게시판/글 검색" autocomplete="off" />
+      </form>
+
+      <div class="top-actions community-top-actions">
+        <a class="community-home-link" href="/home">MOVIENAVI</a>
+        <a id="account-link" class="account-pill" href="/login">로그인/회원가입</a>
+      </div>
+    </header>
+
+    <main class="community-main-grid">
+      <aside class="community-left">
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>즐겨찾기 게시판</h2>
+          </div>
+          <div id="community-favorites" class="community-favorites"></div>
+        </section>
+
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>카테고리</h2>
+          </div>
+          <div id="community-category-accordion" class="community-accordion"></div>
+        </section>
+      </aside>
+
+      <section class="community-center">
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>인기 게시판</h2>
+            <div class="community-tabs">
+              <button type="button" class="community-tab is-active" data-period="today">오늘</button>
+              <button type="button" class="community-tab" data-period="weekly">주간</button>
+            </div>
+          </div>
+          <ul id="community-popular-boards" class="community-popular-boards"></ul>
+        </section>
+      </section>
+
+      <aside class="community-right">
+        <section id="community-quick-login-panel" class="community-panel community-quick-login-panel">
+          <div class="community-panel-head">
+            <h2>빠른 로그인</h2>
+          </div>
+          <form id="community-quick-login-form" class="community-quick-login-form">
+            <input id="community-quick-login-email" type="email" placeholder="이메일" autocomplete="username" required />
+            <input id="community-quick-login-password" type="password" placeholder="비밀번호" autocomplete="current-password" required />
+            <label class="community-quick-login-remember">
+              <input id="community-quick-login-remember" type="checkbox" />
+              <span>이메일 기억하기</span>
+            </label>
+            <button type="submit">로그인</button>
+            <a class="community-quick-signup-link" href="/signup">회원가입</a>
+          </form>
+        </section>
+
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>실시간 인기글</h2>
+          </div>
+          <ol id="community-realtime-hot" class="community-realtime-hot"></ol>
+        </section>
+
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>핫이슈</h2>
+          </div>
+          <div id="community-hot-tags" class="community-hot-tags"></div>
+        </section>
+
+        <section class="community-panel">
+          <div class="community-panel-head">
+            <h2>공지</h2>
+          </div>
+          <ul id="community-notices" class="community-notices"></ul>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./header-auth.js"></script>
+    <script src="./app-community.js"></script>
+  </body>
+</html>

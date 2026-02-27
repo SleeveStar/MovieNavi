@@ -23,6 +23,7 @@ if (topbarEl) {
   initTopbarAutoHide();
 }
 if (topbarEl && topLeftEl && topMenuEl) {
+  ensureCommunityMenuLink();
   initMobileMenuToggle();
 }
 if (searchToggleEl && searchFormEl && searchInputEl) {
@@ -90,7 +91,7 @@ async function initAccountLink() {
     const auth = await getAuthState();
     if (auth.ok && auth.data?.displayName) {
       accountLinkEl.textContent = "마이페이지";
-      accountLinkEl.href = "./mypage.html";
+      accountLinkEl.href = "/mypage";
       accountLinkEl.classList.add("is-logged-in");
       accountLinkEl.title = `${auth.data.displayName}님`;
       setProtectedMenuVisibility(true);
@@ -101,7 +102,7 @@ async function initAccountLink() {
     // keep fallback for unauthenticated or network error
   }
   accountLinkEl.textContent = "로그인/회원가입";
-  accountLinkEl.href = "./login.html";
+  accountLinkEl.href = "/login";
   accountLinkEl.classList.remove("is-logged-in");
   setProtectedMenuVisibility(false);
   removeLogoutButton();
@@ -130,8 +131,19 @@ function collectProtectedMenuLinks() {
   if (!topMenuEl) return [];
   return Array.from(topMenuEl.querySelectorAll("a")).filter((link) => {
     const href = link.getAttribute("href") || "";
-    return href.endsWith("evaluate.html") || href.endsWith("ratings.html");
+    return href === "/evaluate" || href === "/ratings";
   });
+}
+
+function ensureCommunityMenuLink() {
+  if (!topMenuEl) return;
+  const exists = Array.from(topMenuEl.querySelectorAll("a")).some((link) => (link.getAttribute("href") || "") === "/community");
+  if (exists) return;
+
+  const link = document.createElement("a");
+  link.href = "/community";
+  link.textContent = "커뮤니티";
+  topMenuEl.appendChild(link);
 }
 
 function setProtectedMenuVisibility(isLoggedIn) {
@@ -146,6 +158,9 @@ function setProtectedMenuVisibility(isLoggedIn) {
 }
 
 function initTopbarAutoHide() {
+  if (document.body.classList.contains("community-main-page")) {
+    return;
+  }
   let lastScrollY = window.scrollY;
   let ticking = false;
 
@@ -193,7 +208,7 @@ function ensureLogoutButton() {
         credentials: "include"
       });
     } finally {
-      window.location.href = "./index.html";
+      window.location.href = "/home";
     }
   });
   topActionsEl.appendChild(logoutBtn);
@@ -248,7 +263,7 @@ function initMobileMenuToggle() {
 }
 
 function initHeaderSearch() {
-  const isSearchPage = window.location.pathname.endsWith("/search.html") || window.location.pathname.endsWith("search.html");
+  const isSearchPage = window.location.pathname === "/search";
 
   const openSearch = () => {
     searchFormEl.hidden = false;
@@ -281,7 +296,7 @@ function initHeaderSearch() {
     }
     if (!isSearchPage) {
       event.preventDefault();
-      window.location.href = `./search.html?q=${encodeURIComponent(query)}`;
+      window.location.href = `/search?q=${encodeURIComponent(query)}`;
     }
   });
 
@@ -323,3 +338,4 @@ function initFloatingSide(aside) {
   toggleVisibility();
 }
 })();
+

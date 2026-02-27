@@ -73,7 +73,7 @@ async function bootstrap() {
 
 function redirectToLogin() {
   const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-  window.location.href = `./login.html?next=${next}`;
+  window.location.href = `/login?next=${next}`;
 }
 
 function resolveConfig(key, fallback) {
@@ -425,4 +425,5 @@ function loadSeenIdsFromSession() {
 function persistSeenIdsToSession() {
   sessionStorage.setItem(EVAL_SKIPPED_IDS_KEY, JSON.stringify(Array.from(state.evalSeenIds)));
 }
+
 

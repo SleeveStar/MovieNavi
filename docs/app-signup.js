@@ -51,7 +51,7 @@ document.querySelector("#verify-form").addEventListener("submit", async (event) 
     hideVerifyTimer();
     renderStatus("ok", "회원가입이 완료되었습니다. 잠시 후 로그인 페이지로 이동합니다.");
     setTimeout(() => {
-      window.location.href = "./login.html";
+      window.location.href = "/login";
     }, 900);
     return;
   }
@@ -135,3 +135,4 @@ function hideVerifyTimer() {
   if (!verifyCodeTimerEl) return;
   verifyCodeTimerEl.hidden = true;
 }
+

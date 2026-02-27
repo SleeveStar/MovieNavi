@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MOVIENAVI - 섹션 더보기</title>
+    <title>MOVIENAVI - 글쓰기</title>
     <link rel="stylesheet" href="./styles.css" />
     <link rel="icon" type="image/png" href="./logos/tab_logo.png" />
   </head>
-  <body class="home-page search-page search-section-page">
+  <body class="ratings-page community-page">
     <header class="topbar">
       <div class="top-left">
         <a class="brand" href="/home" aria-label="MOVIENAVI 메인으로 이동">
@@ -18,6 +18,7 @@
           <a href="/search">검색</a>
           <a href="/evaluate">평가 페이지</a>
           <a href="/ratings">평가 목록</a>
+          <a href="/community">커뮤니티</a>
         </nav>
       </div>
       <div class="top-actions">
@@ -33,20 +34,27 @@
       </div>
     </header>
 
-    <main class="layout">
-      <section class="section-block search-panel">
-        <div class="section-head">
-          <h2 id="section-page-title">검색 더보기</h2>
-          <a id="section-page-back" class="search-more-btn" href="/search">검색으로 돌아가기</a>
-        </div>
-        <div id="section-page-feedback" class="state-line"></div>
-        <div id="section-page-results" class="movie-grid" aria-live="polite"></div>
+    <main class="layout community-layout">
+      <section class="eval-side community-card">
+        <h2 id="community-write-title">글쓰기</h2>
+        <form id="community-write-form" class="community-write-form">
+          <input id="community-write-subject" type="text" placeholder="제목" maxlength="120" required />
+          <label for="community-write-image-file">이미지 업로드 (선택)</label>
+          <input id="community-write-image-file" type="file" accept="image/*" />
+          <input id="community-write-image-url" type="hidden" />
+          <button type="button" id="community-write-image-clear" class="light-action-btn">이미지 제거</button>
+          <img id="community-write-image-preview" class="community-write-image-preview" alt="업로드 미리보기" hidden />
+          <textarea id="community-write-content" placeholder="내용을 입력하세요." maxlength="5000" required></textarea>
+          <div class="community-write-actions">
+            <button type="submit" class="eval-skip">등록하기</button>
+            <a id="community-write-cancel" class="light-action-btn" href="/community">취소</a>
+          </div>
+        </form>
+        <div id="community-write-status" class="state-line"></div>
       </section>
     </main>
 
-    <script src="./config.js"></script>
     <script src="./header-auth.js"></script>
-    <script src="./app-search-section.js"></script>
+    <script src="./app-community-write.js"></script>
   </body>
 </html>
-

@@ -31,7 +31,7 @@ async function bootstrap() {
     const sectionType = resolveSectionType(params.get("section"));
 
     if (backLinkEl) {
-      backLinkEl.href = query ? `./search.html?q=${encodeURIComponent(query)}` : "./search.html";
+      backLinkEl.href = query ? `/search?q=${encodeURIComponent(query)}` : "/search";
     }
 
     if (!query || !sectionType) {
@@ -245,7 +245,7 @@ function createMovieCard(movie) {
     </div>
   `;
   card.querySelector(".detail-btn").addEventListener("click", () => {
-    window.location.href = `./movie-detail.html?id=${movie.id}`;
+    window.location.href = `/movie?id=${movie.id}`;
   });
   return card;
 }
@@ -262,3 +262,4 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
